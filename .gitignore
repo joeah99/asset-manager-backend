@@ -8,7 +8,7 @@
 
 *.pdb
 
-*.json
+# *.json
 
 *.props
 
@@ -52,8 +52,8 @@ Thumbs.db
 secrets.json
 
 # Ignore configuration and sensitive data
-appsettings*.json
-appsettings*.Development.json
+# appsettings*.json
+# appsettings*.Development.json
 
 # Ignore logs
 *.log
