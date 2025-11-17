@@ -1,18 +1,9 @@
-using MySql.Data.MySqlClient;
+using Npgsql;
 using System.Collections.Generic;
-using System.Numerics;
 using System.Threading.Tasks;
 using API.DTOs;
-using System.Text;
-using System.ComponentModel;
-using Azure;
-using System.Text.Json;
-
-using MySql.Data.MySqlClient;
-using System.Threading.Tasks;
-using System.ComponentModel.Design;
+using System;
 using Isopoh.Cryptography.Argon2;
-using System.Data;
 
 namespace API.DbContext
 {
@@ -27,86 +18,75 @@ namespace API.DbContext
 
     public async Task<bool> UserExists(string email)
     {
-      var responseValue = false;
+      bool responseValue = false;
 
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand("SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.[User] WHERE email = @email) THEN 1 ELSE 0 END", conn);
+        var command = new NpgsqlCommand(
+          "SELECT CASE WHEN EXISTS (SELECT 1 FROM \"User\" WHERE email = @email) THEN TRUE ELSE FALSE END",
+          conn);
         command.Parameters.AddWithValue("@email", email);
 
-        using (var reader = await command.ExecuteReaderAsync())
-        {
-          if (await reader.ReadAsync())
-          {
-            responseValue = reader.GetInt32(0) == 1;
-            // Reads the integer (0 or 1) and converts to boolean
-            // 1 = true
-            // 0 = false
-          }
-        }
+        var result = await command.ExecuteScalarAsync();
+        responseValue = result != DBNull.Value && (bool)result;
       }
+
       return responseValue;
     }
 
     public async Task<bool> UsernameExists(string username)
     {
-      var responseValue = false;
+      bool responseValue = false;
 
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand("SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.[User] WHERE username = @username) THEN 1 ELSE 0 END", conn);
+        var command = new NpgsqlCommand(
+          "SELECT CASE WHEN EXISTS (SELECT 1 FROM \"User\" WHERE username = @username) THEN TRUE ELSE FALSE END",
+          conn);
         command.Parameters.AddWithValue("@username", username);
 
-        using (var reader = await command.ExecuteReaderAsync())
-        {
-          if (await reader.ReadAsync())
-          {
-            responseValue = reader.GetInt32(0) == 1;
-          }
-        }
+        var result = await command.ExecuteScalarAsync();
+        responseValue = result != DBNull.Value && (bool)result;
       }
+
       return responseValue;
     }
 
     public async Task<bool> IsPasswordValid(LoginDto loginDto)
     {
+      string hashedPassword = "";
 
-      var hashedPassword = "";
-
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
-        var command = new MySqlCommand("SELECT hashed_password FROM dbo.[User] WHERE email = @email", conn);
+        var command = new NpgsqlCommand(
+          "SELECT hashed_password FROM \"User\" WHERE email = @email", conn);
         command.Parameters.AddWithValue("@email", loginDto.Email);
 
-        using (var reader = await command.ExecuteReaderAsync())
+        var result = await command.ExecuteScalarAsync();
+        if (result != null && result != DBNull.Value)
         {
-          if (await reader.ReadAsync())
-          {
-            hashedPassword = reader.GetString(0);
-          }
+          hashedPassword = (string)result;
         }
       }
 
-      if (Argon2.Verify(hashedPassword, loginDto.Password))
-      {
-        return true;
-      }
-      else return false;
+      return Argon2.Verify(hashedPassword, loginDto.Password);
     }
 
     public async Task<AppUser?> GetUserByUsername(string email)
     {
       AppUser? user = null;
 
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
-        var command = new MySqlCommand("SELECT user_id, full_name, username, company, email, created_at FROM dbo.[User] WHERE email = @email", conn);
+        var command = new NpgsqlCommand(
+          "SELECT user_id, full_name, username, company, email, created_at FROM \"User\" WHERE email = @email",
+          conn);
         command.Parameters.AddWithValue("@email", email);
 
         using (var reader = await command.ExecuteReaderAsync())
@@ -119,7 +99,7 @@ namespace API.DbContext
               FullName = reader.GetString(1),
               Username = reader.GetString(2),
               Company = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
-              Email = reader.GetString(4),
+              Email = reader.GetString(4)
             };
           }
         }
@@ -128,80 +108,76 @@ namespace API.DbContext
       return user;
     }
 
-
     public async Task<AppUser?> RegisterUser(AppUser user)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand(
-            "INSERT INTO [User] (full_name, username, hashed_password, email, created_at) " +
-            "VALUES (@full_name, @username, @hashed_password, @email, @created_at); " +
-            "SELECT SCOPE_IDENTITY(); ", conn);
+        var command = new NpgsqlCommand(
+          "INSERT INTO \"User\" (full_name, username, hashed_password, email, created_at) " +
+          "VALUES (@full_name, @username, @hashed_password, @email, @created_at) " +
+          "RETURNING user_id;",
+          conn);
 
-        // Add parameters to prevent SQL injection
         command.Parameters.AddWithValue("@full_name", user.FullName);
         command.Parameters.AddWithValue("@username", user.Username);
         command.Parameters.AddWithValue("@hashed_password", user.PasswordHash);
         command.Parameters.AddWithValue("@email", user.Email);
-        command.Parameters.AddWithValue("@created_at", DateTime.Now);
+        command.Parameters.AddWithValue("@created_at", DateTime.UtcNow);
 
-        var newUserId = (decimal)await command.ExecuteScalarAsync();
-        user.Id = (long)newUserId;
+        var newUserId = await command.ExecuteScalarAsync();
+        user.Id = Convert.ToInt64(newUserId);
 
-        // Return true if the insert was successful (1 or more rows affected)
-        if (newUserId > 0)
-        {
-          return user;
-        }
-        else return null;
+        return user.Id > 0 ? user : null;
       }
     }
 
     public async Task<bool> DeleteUser(string email)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand("DELETE FROM dbo.[User] WHERE email = @email", conn);
+        var command = new NpgsqlCommand("DELETE FROM \"User\" WHERE email = @email", conn);
         command.Parameters.AddWithValue("@email", email);
 
         int rowsAffected = await command.ExecuteNonQueryAsync();
-
         return rowsAffected > 0;
       }
     }
 
     public async Task<bool> AddForgotPasswordToken(string token, string email)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand("INSERT INTO dbo.ForgotPasswordToken (token_hash, created_at, email) VALUES (@token, @createdAt, @email)", conn);
+        var command = new NpgsqlCommand(
+          "INSERT INTO \"ForgotPasswordToken\" (token_hash, created_at, email) VALUES (@token, @createdAt, @email)",
+          conn);
         command.Parameters.AddWithValue("@token", token);
-        command.Parameters.AddWithValue("@createdAt", DateTime.Now);
+        command.Parameters.AddWithValue("@createdAt", DateTime.UtcNow);
         command.Parameters.AddWithValue("@email", email);
 
         int rowsAffected = await command.ExecuteNonQueryAsync();
-
         return rowsAffected > 0;
       }
     }
 
-    public async Task<string> VerifyPasswordResetToken(string resetTokenHash, string email)
+    public async Task<string?> VerifyPasswordResetToken(string resetTokenHash, string email)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand("SELECT token_hash, created_at FROM dbo.ForgotPasswordToken WHERE token_hash = @resetTokenHash AND email = @email", conn);
+        var command = new NpgsqlCommand(
+          "SELECT token_hash, created_at FROM \"ForgotPasswordToken\" WHERE token_hash = @resetTokenHash AND email = @email",
+          conn);
         command.Parameters.AddWithValue("@resetTokenHash", resetTokenHash);
         command.Parameters.AddWithValue("@email", email);
 
-        string tokenHash = null;
+        string? tokenHash = null;
         DateTime? createdAt = null;
 
         using (var reader = await command.ExecuteReaderAsync())
@@ -213,10 +189,8 @@ namespace API.DbContext
           }
         }
 
-        if (createdAt == null || DateTime.Now > createdAt.Value.AddMinutes(30) || tokenHash == null)
-        {
+        if (createdAt == null || DateTime.UtcNow > createdAt.Value.AddMinutes(30) || tokenHash == null)
           return null;
-        }
 
         return tokenHash;
       }
@@ -224,28 +198,30 @@ namespace API.DbContext
 
     public async Task<bool> ChangePassword(string password, string email)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand("UPDATE [User] SET hashed_password = @hashed_password WHERE email = @email", conn);
+        var command = new NpgsqlCommand(
+          "UPDATE \"User\" SET hashed_password = @hashed_password WHERE email = @email",
+          conn);
         command.Parameters.AddWithValue("@hashed_password", password);
         command.Parameters.AddWithValue("@email", email);
 
         int rowsAffected = await command.ExecuteNonQueryAsync();
-
         return rowsAffected > 0;
       }
     }
 
     public async Task<bool> UpdateUser(AppUser user)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand(
-            "UPDATE [User] SET full_name = @full_name, company = @company, username = @username, email = @email WHERE user_id = @user_id", conn);
+        var command = new NpgsqlCommand(
+          "UPDATE \"User\" SET full_name = @full_name, company = @company, username = @username, email = @email WHERE user_id = @user_id",
+          conn);
 
         command.Parameters.AddWithValue("@full_name", user.FullName);
         command.Parameters.AddWithValue("@company", user.Company);
@@ -254,39 +230,37 @@ namespace API.DbContext
         command.Parameters.AddWithValue("@user_id", user.Id);
 
         int rowsAffected = await command.ExecuteNonQueryAsync();
-
         return rowsAffected > 0;
       }
     }
 
     public async Task<bool> SaveUserColumnPreferences(long userId, string columnPreferences)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        // First try to update existing preferences
-        var updateCommand = new MySqlCommand(
-            "UPDATE [UserPreferences] SET column_preferences = @column_preferences, updated_at = @updated_at " +
-            "WHERE user_id = @user_id", conn);
+        var updateCommand = new NpgsqlCommand(
+          "UPDATE \"UserPreferences\" SET column_preferences = @column_preferences, updated_at = @updated_at WHERE user_id = @user_id",
+          conn);
 
         updateCommand.Parameters.AddWithValue("@user_id", userId);
         updateCommand.Parameters.AddWithValue("@column_preferences", columnPreferences);
-        updateCommand.Parameters.AddWithValue("@updated_at", DateTime.Now);
+        updateCommand.Parameters.AddWithValue("@updated_at", DateTime.UtcNow);
 
         int rowsAffected = await updateCommand.ExecuteNonQueryAsync();
 
         if (rowsAffected == 0)
         {
-          // If no rows were updated, insert new preferences
-          var insertCommand = new MySqlCommand(
-              "INSERT INTO [UserPreferences] (user_id, column_preferences, created_at, updated_at) " +
-              "VALUES (@user_id, @column_preferences, @created_at, @updated_at)", conn);
+          var insertCommand = new NpgsqlCommand(
+            "INSERT INTO \"UserPreferences\" (user_id, column_preferences, created_at, updated_at) " +
+            "VALUES (@user_id, @column_preferences, @created_at, @updated_at)",
+            conn);
 
           insertCommand.Parameters.AddWithValue("@user_id", userId);
           insertCommand.Parameters.AddWithValue("@column_preferences", columnPreferences);
-          insertCommand.Parameters.AddWithValue("@created_at", DateTime.Now);
-          insertCommand.Parameters.AddWithValue("@updated_at", DateTime.Now);
+          insertCommand.Parameters.AddWithValue("@created_at", DateTime.UtcNow);
+          insertCommand.Parameters.AddWithValue("@updated_at", DateTime.UtcNow);
 
           rowsAffected = await insertCommand.ExecuteNonQueryAsync();
         }
@@ -297,23 +271,18 @@ namespace API.DbContext
 
     public async Task<string?> GetUserColumnPreferences(long userId)
     {
-      using (var conn = new MySqlConnection(_connectionString))
+      using (var conn = new NpgsqlConnection(_connectionString))
       {
         await conn.OpenAsync();
 
-        var command = new MySqlCommand(
-            "SELECT column_preferences FROM [UserPreferences] WHERE user_id = @user_id", conn);
+        var command = new NpgsqlCommand(
+          "SELECT column_preferences FROM \"UserPreferences\" WHERE user_id = @user_id",
+          conn);
         command.Parameters.AddWithValue("@user_id", userId);
 
-        using (var reader = await command.ExecuteReaderAsync())
-        {
-          if (await reader.ReadAsync())
-          {
-            return reader.GetString(0);
-          }
-        }
+        var result = await command.ExecuteScalarAsync();
+        return result != null && result != DBNull.Value ? (string)result : null;
       }
-      return null;
     }
   }
 }

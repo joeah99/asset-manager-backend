@@ -1,4 +1,4 @@
-using MySql.Data.MySqlClient;
+using Npgsql;
 using System.Reflection;
 
 namespace API.Services
@@ -18,56 +18,60 @@ namespace API.Services
         {
             try
             {
-                _logger.LogInformation("Starting database initialization...");
-                
-                // Get all .sql files from the Migrations folder
+                _logger.LogInformation("Starting PostgreSQL database initialization...");
+
+                // Get all embedded .sql files from the Migrations folder
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceNames = assembly.GetManifestResourceNames()
-                    .Where(name => name.EndsWith(".sql"))
-                    .OrderBy(name => name) // This ensures scripts run in order (001_, 002_, etc.)
+                    .Where(name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(name => name) // Run in filename order (e.g., 001_, 002_, etc.)
                     .ToList();
 
                 foreach (var resourceName in resourceNames)
                 {
                     _logger.LogInformation($"Running migration script: {resourceName}");
-                    
+
                     string script;
                     using (var stream = assembly.GetManifestResourceStream(resourceName))
-                    using (var reader = new StreamReader(stream))
+                    using (var reader = new StreamReader(stream!))
                     {
                         script = await reader.ReadToEndAsync();
                     }
 
-                    using (var connection = new MySqlConnection(_connectionString))
+                    // Note: PostgreSQL does not use "GO" batch separators
+                    var commandStrings = new List<string> { script };
+
+                    await using (var connection = new NpgsqlConnection(_connectionString))
                     {
                         await connection.OpenAsync();
 
-                        // Split the script on GO statements if present
-                        // var commandStrings = script.Split(new[] { "GO" }, StringSplitOptions.RemoveEmptyEntries);
-                        var commandStrings = new[] { script };
-                        
                         foreach (var commandString in commandStrings)
                         {
-                            if (!string.IsNullOrWhiteSpace(commandString))
+                            await using (var command = new NpgsqlCommand(commandString, connection))
                             {
-                                using (var command = new MySqlCommand(commandString, connection))
+                                try
                                 {
                                     await command.ExecuteNonQueryAsync();
+                                }
+                                catch (Exception innerEx)
+                                {
+                                    _logger.LogError(innerEx, $"Error executing script segment from {resourceName}:\n{commandString}");
+                                    throw;
                                 }
                             }
                         }
                     }
-                    
+
                     _logger.LogInformation($"Completed migration script: {resourceName}");
                 }
-                
-                _logger.LogInformation("Database initialization completed successfully.");
+
+                _logger.LogInformation("PostgreSQL database initialization completed successfully.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during database initialization");
+                _logger.LogError(ex, "Error during PostgreSQL database initialization");
                 throw;
             }
         }
     }
-} 
+}
