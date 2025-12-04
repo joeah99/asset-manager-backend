@@ -8,12 +8,6 @@ using Quartz;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(int.Parse(port));
-});
-
 // Add core services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -81,7 +75,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
-            "https://zealous-plant-0058a6510.5.azurestaticapps.net",
+            // "https://zealous-plant-0058a6510.5.azurestaticapps.net",
             "http://localhost:3000"
         )
         .AllowAnyMethod()
