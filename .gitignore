@@ -8,13 +8,15 @@
 
 *.pdb
 
-# *.json
+*.json
 
 *.props
 
 *.targets
 
 *.txt
+
+*.pyc
 
 *.editorconfig# Ignore Visual Studio temporary files, build results, and
 # the VSCode folder for settings and extensions
@@ -52,8 +54,8 @@ Thumbs.db
 secrets.json
 
 # Ignore configuration and sensitive data
-# appsettings*.json
-# appsettings*.Development.json
+appsettings*.json
+appsettings*.Development.json
 
 # Ignore logs
 *.log
