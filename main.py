@@ -44,9 +44,16 @@ app.include_router(valuations.router, prefix="/Valuation", tags=["Valuation"])
 app.include_router(commodities.router, prefix="/commodities", tags=["Commodities"])
 app.include_router(scenarios.router, prefix="/scenarios", tags=["Scenarios"])
 
+# -------------------
 # CORS configuration
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
-allowed_origins.append("https://temp-senior-design.vercel.app")
+# -------------------
+allowed_origins = [
+    "http://localhost:3000",  # local dev
+    "http://127.0.0.1:3000",  # local dev
+    "https://temp-senior-design.vercel.app",  # Vercel frontend
+    "https://temp-senior-design-bqd07f7nq-joseph-holys-projects.vercel.app",  # older preview URL if used
+    "temp-senior-design-git-main-joseph-holys-projects.vercel.app"
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,9 +63,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health check endpoint
 @app.get("/")
 def root():
     return {"message": "Python backend is running!"}
+
+# Optional test endpoint for CORS
+@app.get("/test-cors")
+def test_cors():
+    return {"message": "CORS is working!"}
 
 @app.on_event("shutdown")
 def shutdown_event():
