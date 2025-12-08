@@ -44,15 +44,13 @@ app.include_router(valuations.router, prefix="/Valuation", tags=["Valuation"])
 app.include_router(commodities.router, prefix="/commodities", tags=["Commodities"])
 app.include_router(scenarios.router, prefix="/scenarios", tags=["Scenarios"])
 
-# Allow your React frontend to call this API
-origins = [
-    "http://localhost:3000",  # React dev server
-    "http://127.0.0.1:3000"
-]
+# CORS configuration
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+allowed_origins.append("https://temp-senior-design.vercel.app")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,7 +59,6 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"message": "Python backend is running!"}
-
 
 @app.on_event("shutdown")
 def shutdown_event():
