@@ -14,8 +14,6 @@
 
 *.targets
 
-*.txt
-
 *.pyc
 
 *.editorconfig# Ignore Visual Studio temporary files, build results, and
