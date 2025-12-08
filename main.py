@@ -48,12 +48,14 @@ app.include_router(scenarios.router, prefix="/scenarios", tags=["Scenarios"])
 # CORS configuration
 # -------------------
 allowed_origins = [
-    "http://localhost:3000",  # local dev
-    "http://127.0.0.1:3000",  # local dev
-    "https://temp-senior-design.vercel.app",  # Vercel frontend
-    "https://temp-senior-design-bqd07f7nq-joseph-holys-projects.vercel.app",  # older preview URL if used
-    "temp-senior-design-git-main-joseph-holys-projects.vercel.app"
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://temp-senior-design.vercel.app",
+    "https://temp-senior-design-bqd07f7nq-joseph-holys-projects.vercel.app",
+    "https://temp-senior-design-git-main-joseph-holys-projects.vercel.app",
+    "https://temp-senior-design-i3r93r900-joseph-holys-projects.vercel.app",  # <-- ADD THIS
 ]
+
 
 app.add_middleware(
     CORSMiddleware,
