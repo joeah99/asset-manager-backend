@@ -22,38 +22,42 @@ class AssetDbContext:
         try:
             query = '''
                 SELECT
-                    asset_id, user_id, asset_type, initial_book_value, manufacturer, model, model_year,
-                    usage, condition, country, state_us, deleted, depreciation_method, salvage_value,
-                    useful_life, depreciation_rate, total_expected_units_production, units_produced_in_year,
-                    created_at, updated_at
-                FROM public."Asset"
-                WHERE user_id = $1 AND deleted <> TRUE
+                    "AssetId", "UserId", "Type", "PurchasePrice", "PurchaseDate", "InitialBookValue", "Manufacturer", "Model", "ModelYear",
+                    "Usage", "UsageUnit", "Condition", "Country", "StateUs", "ZipCode", "Deleted", "DepreciationMethod", "SalvageValue",
+                    "UsefulLife", "DepreciationRate", "TotalExpectedUnitsProduction", "UnitsProducedInYear",
+                    "CreatedAt", "UpdatedAt"
+                FROM public."Assets"
+                WHERE "UserId" = $1 AND "Deleted" <> TRUE
             '''
 
             rows = await conn.fetch(query, user_id)
 
             for row in rows:
                 asset = AssetDTO(
-                    asset_id=row['asset_id'],
-                    user_id=row['user_id'],
-                    type=row['asset_type'],
-                    book_value=float(row['initial_book_value']),
-                    manufacturer=row['manufacturer'],
-                    model=row['model'],
-                    model_year=row['model_year'],
-                    usage=row['usage'],
-                    condition=row['condition'],
-                    country=row['country'],
-                    state=row['state_us'],
-                    deleted=row['deleted'],
-                    depreciation_method=row['depreciation_method'],
-                    salvage_value=float(row['salvage_value']),
-                    useful_life=row['useful_life'],
-                    depreciation_rate=float(row['depreciation_rate']) if row['depreciation_rate'] else None,
-                    total_expected_units_of_production=row['total_expected_units_production'] if row['total_expected_units_production'] else 0,
-                    units_produced_in_year=row['units_produced_in_year'] if row['units_produced_in_year'] else 0,
-                    create_date=row['created_at'].strftime("%Y-%m-%dT%H:%M:%S"),
-                    update_date=row['updated_at'].strftime("%Y-%m-%dT%H:%M:%S")
+                    asset_id=row['AssetId'],
+                    user_id=row['UserId'],
+                    type=row['Type'],
+                    purchase_price=float(row['PurchasePrice']),
+                    purchase_date=row['PurchaseDate'].strftime("%Y-%m-%d") if row['PurchaseDate'] else None,
+                    book_value=float(row['InitialBookValue']),
+                    manufacturer=row['Manufacturer'],
+                    model=row['Model'],
+                    model_year=row['ModelYear'],
+                    usage=row['Usage'],
+                    usage_unit=row['UsageUnit'],
+                    condition=row['Condition'],
+                    country=row['Country'],
+                    state=row['StateUs'],
+                    zip_code=row['ZipCode'],
+                    deleted=row['Deleted'],
+                    depreciation_method=row['DepreciationMethod'],
+                    salvage_value=float(row['SalvageValue']),
+                    useful_life=row['UsefulLife'],
+                    depreciation_rate=float(row['DepreciationRate']) if row['DepreciationRate'] else None,
+                    total_expected_units_of_production=row['TotalExpectedUnitsProduction'] if row['TotalExpectedUnitsProduction'] else 0,
+                    units_produced_in_year=row['UnitsProducedInYear'] if row['UnitsProducedInYear'] else 0,
+                    create_date=row['CreatedAt'].strftime("%Y-%m-%dT%H:%M:%S"),
+                    update_date=row['UpdatedAt'].strftime("%Y-%m-%dT%H:%M:%S")
                 )
                 asset_list.append(asset)
 
@@ -68,18 +72,18 @@ class AssetDbContext:
         try:
             query = '''
                 SELECT
-                    asset_id, user_id, asset_type, manufacturer, model, model_year,
-                    usage, condition, country, state_us, created_at
-                FROM public."Asset"
-                WHERE user_id = $1
-                    AND asset_type = $2
-                    AND manufacturer = $3
-                    AND model = $4
-                    AND model_year = $5
-                    AND usage = $6
-                    AND condition = $7
-                    AND country = $8
-                    AND state_us = $9
+                    "AssetId", "UserId", "Type", "Manufacturer", "Model", "ModelYear",
+                    "Usage", "Condition", "Country", "StateUs", "ZipCode", "CreatedAt"
+                FROM public."Assets"
+                WHERE "UserId" = $1
+                    AND "Type" = $2
+                    AND "Manufacturer" = $3
+                    AND "Model" = $4
+                    AND "ModelYear" = $5
+                    AND "Usage" = $6
+                    AND "Condition" = $7
+                    AND "Country" = $8
+                    AND "StateUs" = $9
             '''
 
             row = await conn.fetchrow(
@@ -99,17 +103,18 @@ class AssetDbContext:
                 return None
 
             return AssetDTO(
-                asset_id=row['asset_id'],
-                user_id=row['user_id'],
-                type=row['asset_type'],
-                manufacturer=row['manufacturer'],
-                model=row['model'],
-                model_year=row['model_year'],
-                usage=row['usage'],
-                condition=row['condition'],
-                country=row['country'],
-                state=row['state_us'],
-                create_date=row['created_at'].strftime("%Y-%m-%dT%H:%M:%S"),
+                asset_id=row['AssetId'],
+                user_id=row['UserId'],
+                type=row['Type'],
+                manufacturer=row['Manufacturer'],
+                model=row['Model'],
+                model_year=row['ModelYear'],
+                usage=row['Usage'],
+                condition=row['Condition'],
+                country=row['Country'],
+                state=row['StateUs'],
+                zip_code=row['ZipCode'],
+                create_date=row['CreatedAt'].strftime("%Y-%m-%dT%H:%M:%S"),
                 book_value=0.0,  # Not needed for existence check
                 salvage_value=0.0,
                 depreciation_method=""
@@ -126,37 +131,39 @@ class AssetDbContext:
         try:
             query = '''
                 SELECT
-                    asset_id, user_id, asset_type, initial_book_value, manufacturer, model, model_year,
-                    usage, condition, country, state_us, deleted, depreciation_method, salvage_value,
-                    useful_life, depreciation_rate, total_expected_units_production, units_produced_in_year,
-                    created_at, updated_at
-                FROM public."Asset"
+                    "AssetId", "UserId", "Type", "PurchasePrice", "InitialBookValue", "Manufacturer", "Model", "ModelYear",
+                    "Usage", "Condition", "Country", "StateUs", "ZipCode", "Deleted", "DepreciationMethod", "SalvageValue",
+                    "UsefulLife", "DepreciationRate", "TotalExpectedUnitsProduction", "UnitsProducedInYear",
+                    "CreatedAt", "UpdatedAt"
+                FROM public."Assets"
             '''
 
             rows = await conn.fetch(query)
 
             for row in rows:
                 asset = AssetDTO(
-                    asset_id=row['asset_id'],
-                    user_id=row['user_id'],
-                    type=row['asset_type'],
-                    book_value=float(row['initial_book_value']),
-                    manufacturer=row['manufacturer'],
-                    model=row['model'],
-                    model_year=row['model_year'],
-                    usage=row['usage'],
-                    condition=row['condition'],
-                    country=row['country'],
-                    state=row['state_us'],
-                    deleted=row['deleted'],
-                    depreciation_method=row['depreciation_method'],
-                    salvage_value=float(row['salvage_value']),
-                    useful_life=row['useful_life'],
-                    depreciation_rate=float(row['depreciation_rate']) if row['depreciation_rate'] else None,
-                    total_expected_units_of_production=row['total_expected_units_production'] if row['total_expected_units_production'] else 0,
-                    units_produced_in_year=row['units_produced_in_year'] if row['units_produced_in_year'] else 0,
-                    create_date=row['created_at'].strftime("%Y-%m-%dT%H:%M:%S"),
-                    update_date=row['updated_at'].strftime("%Y-%m-%dT%H:%M:%S")
+                    asset_id=row['AssetId'],
+                    user_id=row['UserId'],
+                    type=row['Type'],
+                    purchase_price=float(row['PurchasePrice']),
+                    book_value=float(row['InitialBookValue']),
+                    manufacturer=row['Manufacturer'],
+                    model=row['Model'],
+                    model_year=row['ModelYear'],
+                    usage=row['Usage'],
+                    condition=row['Condition'],
+                    country=row['Country'],
+                    state=row['StateUs'],
+                    zip_code=row['ZipCode'],
+                    deleted=row['Deleted'],
+                    depreciation_method=row['DepreciationMethod'],
+                    salvage_value=float(row['SalvageValue']),
+                    useful_life=row['UsefulLife'],
+                    depreciation_rate=float(row['DepreciationRate']) if row['DepreciationRate'] else None,
+                    total_expected_units_of_production=row['TotalExpectedUnitsProduction'] if row['TotalExpectedUnitsProduction'] else 0,
+                    units_produced_in_year=row['UnitsProducedInYear'] if row['UnitsProducedInYear'] else 0,
+                    create_date=row['CreatedAt'].strftime("%Y-%m-%dT%H:%M:%S"),
+                    update_date=row['UpdatedAt'].strftime("%Y-%m-%dT%H:%M:%S")
                 )
                 asset_list.append(asset)
 
@@ -170,34 +177,44 @@ class AssetDbContext:
         conn = await asyncpg.connect(self.connection_string)
         try:
             query = '''
-                INSERT INTO public."Asset"
-                    (user_id, asset_type, initial_book_value, manufacturer, model, model_year, usage,
-                     condition, country, state_us, depreciation_method, salvage_value, useful_life,
-                     depreciation_rate, total_expected_units_production, units_produced_in_year,
-                     created_at, updated_at)
+                INSERT INTO public."Assets"
+                    ("UserId", "Type", "PurchasePrice", "PurchaseDate", "InitialBookValue", "Manufacturer", "Model", "ModelYear", "Usage", "UsageUnit",
+                     "Condition", "Country", "StateUs", "ZipCode", "DepreciationMethod", "SalvageValue", "UsefulLife",
+                     "DepreciationRate", "TotalExpectedUnitsProduction", "UnitsProducedInYear",
+                     "CreatedAt", "UpdatedAt")
                 VALUES
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-                RETURNING asset_id
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                RETURNING "AssetId"
             '''
+
+            # Parse purchase date or default to now
+            try:
+                p_date = datetime.strptime(asset.purchase_date, "%Y-%m-%d").date() if asset.purchase_date else datetime.now().date()
+            except:
+                p_date = datetime.now().date()
 
             asset_id = await conn.fetchval(
                 query,
                 asset.user_id,
                 asset.type,
+                asset.purchase_price,
+                p_date,
                 asset.book_value,
                 asset.manufacturer,
                 asset.model,
                 asset.model_year,
                 asset.usage,
+                asset.usage_unit,
                 asset.condition,
                 asset.country,
                 asset.state,
+                asset.zip_code,
                 asset.depreciation_method,
                 asset.salvage_value,
                 asset.useful_life,
-                asset.depreciation_rate,
-                asset.total_expected_units_of_production,
-                asset.units_produced_in_year,
+                asset.depreciation_rate if asset.depreciation_rate else 0,
+                asset.total_expected_units_of_production if asset.total_expected_units_of_production else 0,
+                asset.units_produced_in_year if asset.units_produced_in_year else 0,
                 datetime.now(),
                 datetime.now()
             )
@@ -213,9 +230,9 @@ class AssetDbContext:
         conn = await asyncpg.connect(self.connection_string)
         try:
             query = '''
-                UPDATE public."Asset"
-                SET deleted = TRUE
-                WHERE user_id = $1 AND asset_id = $2
+                UPDATE public."Assets"
+                SET "Deleted" = TRUE
+                WHERE "UserId" = $1 AND "AssetId" = $2
             '''
 
             await conn.execute(query, asset.user_id, asset.asset_id)
@@ -228,38 +245,51 @@ class AssetDbContext:
         conn = await asyncpg.connect(self.connection_string)
         try:
             query = '''
-                UPDATE public."Asset"
-                SET asset_type = $1,
-                    initial_book_value = $2,
-                    manufacturer = $3,
-                    model = $4,
-                    model_year = $5,
-                    usage = $6,
-                    condition = $7,
-                    country = $8,
-                    state_us = $9,
-                    deleted = FALSE,
-                    depreciation_method = $10,
-                    salvage_value = $11,
-                    useful_life = $12,
-                    depreciation_rate = $13,
-                    total_expected_units_production = $14,
-                    units_produced_in_year = $15,
-                    updated_at = $16
-                WHERE asset_id = $17
+                UPDATE public."Assets"
+                SET "Type" = $1,
+                    "PurchasePrice" = $2,
+                    "PurchaseDate" = $3,
+                    "InitialBookValue" = $4,
+                    "Manufacturer" = $5,
+                    "Model" = $6,
+                    "ModelYear" = $7,
+                    "Usage" = $8,
+                    "UsageUnit" = $9,
+                    "Condition" = $10,
+                    "Country" = $11,
+                    "StateUs" = $12,
+                    "ZipCode" = $13,
+                    "Deleted" = FALSE,
+                    "DepreciationMethod" = $14,
+                    "SalvageValue" = $15,
+                    "UsefulLife" = $16,
+                    "DepreciationRate" = $17,
+                    "TotalExpectedUnitsProduction" = $18,
+                    "UnitsProducedInYear" = $19,
+                    "UpdatedAt" = $20
+                WHERE "AssetId" = $21
             '''
+
+            try:
+                p_date = datetime.strptime(asset.purchase_date, "%Y-%m-%d").date() if asset.purchase_date else datetime.now().date()
+            except:
+                p_date = datetime.now().date()
 
             result = await conn.execute(
                 query,
                 asset.type,
+                asset.purchase_price,
+                p_date,
                 asset.book_value,
                 asset.manufacturer,
                 asset.model,
                 asset.model_year,
                 asset.usage,
+                asset.usage_unit,
                 asset.condition,
                 asset.country,
                 asset.state,
+                asset.zip_code,
                 asset.depreciation_method,
                 asset.salvage_value,
                 asset.useful_life,

@@ -22,11 +22,11 @@ class LoanInformationDbContext:
         try:
             query = """
                 SELECT
-                    loan_id, asset_id, user_id, lender_name, loan_amount, interest_rate, loan_term_years,
+                    loan_id, asset_id, user_id, lender_name, loan_name, loan_type, loan_amount, interest_rate, loan_term_years,
                     remaining_balance, monthly_payment, payment_frequency, loan_status,
                     last_payment_date, last_payment_amount, next_payment_date,
                     loan_start_date, loan_end_date, created_at, updated_at
-                FROM loaninformation
+                FROM "Loans"
                 WHERE user_id = $1
             """
 
@@ -38,6 +38,8 @@ class LoanInformationDbContext:
                     asset_id=row['asset_id'],
                     user_id=row['user_id'],
                     lender_name=row['lender_name'] or '',
+                    loan_name=row['loan_name'] or '',
+                    loan_type=row['loan_type'] or '',
                     loan_amount=float(row['loan_amount']) if row['loan_amount'] else 0.0,
                     interest_rate=float(row['interest_rate']) if row['interest_rate'] else 0.0,
                     loan_term_years=row['loan_term_years'] or 0,
@@ -65,13 +67,13 @@ class LoanInformationDbContext:
         conn = await asyncpg.connect(self.connection_string)
         try:
             query = """
-                INSERT INTO loaninformation
-                    (asset_id, user_id, lender_name, loan_amount, interest_rate, loan_term_years,
+                INSERT INTO "Loans"
+                    (asset_id, user_id, lender_name, loan_name, loan_type, loan_amount, interest_rate, loan_term_years,
                     remaining_balance, monthly_payment, payment_frequency, loan_status,
                     last_payment_date, last_payment_amount, next_payment_date,
                     loan_start_date, loan_end_date, created_at, updated_at)
                 VALUES
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
                 RETURNING loan_id
             """
 
@@ -80,6 +82,8 @@ class LoanInformationDbContext:
                 loan.asset_id,
                 loan.user_id,
                 loan.lender_name or '',
+                loan.loan_name or '',
+                loan.loan_type or '',
                 loan.loan_amount,
                 loan.interest_rate,
                 loan.loan_term_years,
@@ -105,24 +109,26 @@ class LoanInformationDbContext:
         conn = await asyncpg.connect(self.connection_string)
         try:
             query = """
-                UPDATE loaninformation
+                UPDATE "Loans"
                 SET asset_id = $1,
                     user_id = $2,
                     lender_name = $3,
-                    loan_amount = $4,
-                    interest_rate = $5,
-                    loan_term_years = $6,
-                    remaining_balance = $7,
-                    monthly_payment = $8,
-                    payment_frequency = $9,
-                    loan_status = $10,
-                    last_payment_date = $11,
-                    last_payment_amount = $12,
-                    next_payment_date = $13,
-                    loan_start_date = $14,
-                    loan_end_date = $15,
+                    loan_name = $4,
+                    loan_type = $5,
+                    loan_amount = $6,
+                    interest_rate = $7,
+                    loan_term_years = $8,
+                    remaining_balance = $9,
+                    monthly_payment = $10,
+                    payment_frequency = $11,
+                    loan_status = $12,
+                    last_payment_date = $13,
+                    last_payment_amount = $14,
+                    next_payment_date = $15,
+                    loan_start_date = $16,
+                    loan_end_date = $17,
                     updated_at = NOW()
-                WHERE loan_id = $16
+                WHERE loan_id = $18
             """
 
             result = await conn.execute(
@@ -130,6 +136,8 @@ class LoanInformationDbContext:
                 loan.asset_id,
                 loan.user_id,
                 loan.lender_name or '',
+                loan.loan_name or '',
+                loan.loan_type or '',
                 loan.loan_amount,
                 loan.interest_rate,
                 loan.loan_term_years,
@@ -156,7 +164,7 @@ class LoanInformationDbContext:
         """Delete a loan record"""
         conn = await asyncpg.connect(self.connection_string)
         try:
-            query = "DELETE FROM loaninformation WHERE loan_id = $1"
+            query = 'DELETE FROM "Loans" WHERE loan_id = $1'
             result = await conn.execute(query, loan_id)
 
             # Check if any rows were affected
@@ -253,7 +261,7 @@ class LoanProjectedPaymentsDbContext:
                     p.loan_projected_payment_id, p.loan_id, p.loan_payment_date, p.new_remaining_value, p.created_at
                 FROM "LoanProjectedPayments" p
                 WHERE p.loan_id IN (
-                    SELECT l.loan_id FROM loaninformation l WHERE l.user_id = $1
+                    SELECT l.loan_id FROM "Loans" l WHERE l.user_id = $1
                 )
             """
 

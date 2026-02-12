@@ -74,6 +74,44 @@ class TaxPolicyService:
                 ],
                 policy_source="IRS Rev. Proc. 2024-40 (projected)",
                 last_updated=datetime(2025, 1, 1)
+            ),
+            2026: TaxPolicy(
+                effective_year=2026,
+                section_179_limit=2_560_000,  # Projected (Updated per user request)
+                section_179_phaseout_threshold=4_090_000,  # Updated per user request
+                bonus_depreciation_percent=100,  # 2025=40%, 2026=100% (Updated per user request)
+                macrs_5_year_schedule=[20.00, 32.00, 19.20, 11.52, 11.52, 5.76],
+                macrs_7_year_schedule=[14.29, 24.49, 17.49, 12.49, 8.93, 8.92, 8.93, 4.46],
+                federal_brackets=[
+                    {"limit": 12225, "rate": 0.10},
+                    {"limit": 49700, "rate": 0.12},
+                    {"limit": 105950, "rate": 0.22},
+                    {"limit": 202250, "rate": 0.24},
+                    {"limit": 256800, "rate": 0.32},
+                    {"limit": 642050, "rate": 0.35},
+                    {"limit": float('inf'), "rate": 0.37}
+                ],
+                policy_source="Projected (TCJA Phaseout)",
+                last_updated=datetime(2026, 1, 1)
+            ),
+            2027: TaxPolicy(
+                effective_year=2027,
+                section_179_limit=1_310_000,  # Projected
+                section_179_phaseout_threshold=3_290_000,
+                bonus_depreciation_percent=0,  # Phased out completely
+                macrs_5_year_schedule=[20.00, 32.00, 19.20, 11.52, 11.52, 5.76],
+                macrs_7_year_schedule=[14.29, 24.49, 17.49, 12.49, 8.93, 8.92, 8.93, 4.46],
+                federal_brackets=[
+                    {"limit": 12525, "rate": 0.10},
+                    {"limit": 50950, "rate": 0.12},
+                    {"limit": 108600, "rate": 0.22},
+                    {"limit": 207300, "rate": 0.24},
+                    {"limit": 263200, "rate": 0.32},
+                    {"limit": 658100, "rate": 0.35},
+                    {"limit": float('inf'), "rate": 0.37}
+                ],
+                policy_source="Projected (TCJA Expiration)",
+                last_updated=datetime(2027, 1, 1)
             )
         }
     
@@ -130,31 +168,45 @@ class TaxPolicyService:
     def calculate_section_179_limit_with_phaseout(
         self,
         total_equipment_purchases: float,
-        year: int = 2025
-    ) -> int:
+        year: int = 2025,
+        override_limit: Optional[float] = None
+    ) -> float:
         """
         Calculate available §179 deduction after phaseout.
         
         §179 phases out dollar-for-dollar once total equipment
         purchases exceed the threshold.
         
+        If override_limit is provided, the phaseout threshold is dynamically
+        adjusted to maintain the standard 'gap' between limit and threshold.
+        
         Args:
             total_equipment_purchases: Total qualifying purchases for the year
             year: Tax year
+            override_limit: Optional user-defined limit (e.g., remaining capacity)
             
         Returns:
             Available §179 limit after phaseout
         """
         policy = self.get_policy_for_year(year)
         
-        if total_equipment_purchases <= policy.section_179_phaseout_threshold:
-            return policy.section_179_limit
+        # Determine base values
+        limit = float(override_limit) if override_limit is not None else float(policy.section_179_limit)
+        
+        # Calculate dynamic threshold if override is used
+        # Standard gap = Policy Threshold - Policy Limit
+        # New Threshold = Custom Limit + Standard Gap
+        gap = float(policy.section_179_phaseout_threshold) - float(policy.section_179_limit)
+        phaseout_threshold = limit + gap
+        
+        if total_equipment_purchases <= phaseout_threshold:
+            return limit
         
         # Phase out dollar-for-dollar
-        phaseout_amount = total_equipment_purchases - policy.section_179_phaseout_threshold
-        reduced_limit = policy.section_179_limit - int(phaseout_amount)
+        phaseout_amount = total_equipment_purchases - phaseout_threshold
+        reduced_limit = limit - phaseout_amount
         
-        return max(0, reduced_limit)
+        return max(0.0, reduced_limit)
     
     def get_macrs_first_year_rate(self, useful_life: int, year: int = 2025) -> float:
         """

@@ -83,8 +83,10 @@ class BasisRecaptureService:
         # Step 1: Calculate adjusted basis
         adjusted_basis = original_cost - accumulated_depreciation
         
-        # Step 2: Calculate total gain
-        total_gain = sale_price - adjusted_basis
+        # Step 2: Calculate total gain (Amount Realized - Adjusted Basis)
+        # Amount Realized = Sale Price - Transaction Fees
+        amount_realized = sale_price - transaction_fees
+        total_gain = amount_realized - adjusted_basis
         
         # Step 3: §1245 Recapture (depreciation taken, taxed as ordinary income)
         section_1245_recapture = min(max(0, total_gain), accumulated_depreciation)

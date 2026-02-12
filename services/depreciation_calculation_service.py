@@ -77,9 +77,24 @@ class DepreciationCalculationService:
         Returns:
             DepreciationCalculation with bonus amount
         """
-        # Get policy for in-service year
         policy = self.tax_policy_service.get_policy_for_date(in_service_date)
         bonus_percent = override_bonus_percent if override_bonus_percent is not None else policy.bonus_depreciation_percent
+        
+        # Check Business Use threshold (> 50% required for Bonus)
+        if business_use_percent <= 50.0:
+            result = DepreciationCalculation(
+                asset_name=asset_name,
+                cost=cost,
+                business_use_percent=business_use_percent,
+                depreciable_basis=cost * (business_use_percent / 100.0),
+                bonus_depreciation=0.0,
+                total_first_year_deduction=0.0,
+                remaining_basis=cost * (business_use_percent / 100.0),
+                method_used="BONUS_INELIGIBLE",
+                in_service_date=in_service_date
+            )
+            result.notes.append("Bonus Depreciation not available: Business use is 50% or less.")
+            return result
         
         # Calculate depreciable basis
         depreciable_basis = cost * (business_use_percent / 100.0)
@@ -130,8 +145,25 @@ class DepreciationCalculationService:
         Returns:
             DepreciationCalculation with §179 amount
         """
-        policy = self.tax_policy_service.get_policy_for_date(in_service_date)
         depreciable_basis = cost * (business_use_percent / 100.0)
+        
+        # Check Business Use threshold (> 50% required for §179)
+        if business_use_percent <= 50.0:
+            result = DepreciationCalculation(
+                asset_name=asset_name,
+                cost=cost,
+                business_use_percent=business_use_percent,
+                depreciable_basis=depreciable_basis,
+                section_179_deduction=0.0,
+                total_first_year_deduction=0.0,
+                remaining_basis=depreciable_basis,
+                method_used="SECTION_179_INELIGIBLE",
+                in_service_date=in_service_date
+            )
+            result.notes.append("Section 179 not available: Business use is 50% or less.")
+            return result
+
+        policy = self.tax_policy_service.get_policy_for_date(in_service_date)
         
         # §179 limited by available budget
         section_179_amount = min(depreciable_basis, section_179_available)
@@ -185,6 +217,23 @@ class DepreciationCalculationService:
         """
         policy = self.tax_policy_service.get_policy_for_date(in_service_date)
         depreciable_basis = cost * (business_use_percent / 100.0)
+        
+        # Check Business Use threshold (> 50% required for GDS, else ADS)
+        if business_use_percent <= 50.0:
+             # If called directly, we return 0 and note that ADS is required
+             result = DepreciationCalculation(
+                asset_name=asset_name,
+                cost=cost,
+                business_use_percent=business_use_percent,
+                depreciable_basis=depreciable_basis,
+                macrs_first_year=0.0,
+                total_first_year_deduction=0.0,
+                remaining_basis=depreciable_basis,
+                method_used="MACRS_GDS_INELIGIBLE",
+                in_service_date=in_service_date
+            )
+             result.notes.append("MACRS GDS not available: Business use is 50% or less. Use MACRS ADS.")
+             return result
         
         # Get first-year rate from policy
         first_year_rate = self.tax_policy_service.get_macrs_first_year_rate(useful_life, in_service_date.year)
@@ -264,15 +313,14 @@ class DepreciationCalculationService:
         in_service_date: datetime,
         section_179_available: float,
         business_income_limit: Optional[float] = None,
-        useful_life: int = 5
+        useful_life: int = 5,
+        override_bonus_percent: Optional[int] = None
     ) -> DepreciationCalculation:
         """
-        Calculate depreciation using the most beneficial method.
-        
-        Priority order:
-        1. §179 (if available and beneficial)
-        2. Bonus (if available and beneficial)
-        3. MACRS GDS (default)
+        Calculate maximum deduction by stacking methods:
+        1. Use Section 179 first (up to limit)
+        2. Use Bonus Depreciation on remaining basis
+        3. Use MACRS on any remainder
         
         Args:
             asset_name: Asset identifier
@@ -282,31 +330,93 @@ class DepreciationCalculationService:
             section_179_available: Available §179 budget
             business_income_limit: Business income limit
             useful_life: MACRS class life
+            override_bonus_percent: Optional override for Bonus %
             
         Returns:
-            DepreciationCalculation with optimal method
+            DepreciationCalculation with stacked totals
         """
         policy = self.tax_policy_service.get_policy_for_date(in_service_date)
+        
+        # Determine effective bonus percent (Override or Policy)
+        effective_bonus_percent = policy.bonus_depreciation_percent
+        if override_bonus_percent is not None:
+            effective_bonus_percent = override_bonus_percent
+            
         depreciable_basis = cost * (business_use_percent / 100.0)
+        current_basis = depreciable_basis
         
-        # Calculate all methods
-        section_179_calc = self.calculate_section_179(
-            asset_name, cost, business_use_percent, in_service_date,
-            section_179_available, business_income_limit
+        notes = []
+        
+        # Check Strict Business Use Rule (<= 50% forces ADS, no Bonus/179)
+        if business_use_percent <= 50.0:
+             notes.append("Business Use <= 50%: Section 179 and Bonus disallowed. FORCED MACRS ADS.")
+             
+             # Calculate ADS
+             ads_result = self.calculate_macrs_ads(
+                 asset_name=asset_name,
+                 cost=cost,
+                 business_use_percent=business_use_percent,
+                 in_service_date=in_service_date,
+                 useful_life=useful_life
+             )
+             ads_result.method_used = "First_Year_Maximized"
+             ads_result.notes = notes + ads_result.notes
+             return ads_result
+
+        # --- Step 1: Section 179 ---
+        # Calculate how much §179 we CAN take
+        section_179_claim = 0.0
+        if section_179_available > 0:
+            # Theoretical max is the full basis
+            # Limited by available budget
+            section_179_claim = min(current_basis, section_179_available)
+            
+            # Limited by business income if provided
+            if business_income_limit is not None:
+                section_179_claim = min(section_179_claim, business_income_limit)
+                
+            current_basis -= section_179_claim
+            if section_179_claim > 0:
+                notes.append(f"§179 applied: ${section_179_claim:,.2f}")
+        
+        # --- Step 2: Bonus Depreciation ---
+        # Applied to remaining basis
+        bonus_claim = 0.0
+        if current_basis > 0 and effective_bonus_percent > 0:
+            bonus_claim = current_basis * (effective_bonus_percent / 100.0)
+            current_basis -= bonus_claim
+            if bonus_claim > 0:
+                notes.append(f"Bonus Depreciation ({effective_bonus_percent}%) on remainder: ${bonus_claim:,.2f}")
+                
+        # --- Step 3: MACRS GDS ---
+        # Applied to any remaining basis (if Bonus < 100%)
+        macrs_claim = 0.0
+        if current_basis > 0:
+            first_year_rate = self.tax_policy_service.get_macrs_first_year_rate(useful_life, in_service_date.year)
+            macrs_claim = current_basis * first_year_rate
+            current_basis -= macrs_claim
+            if macrs_claim > 0:
+                 notes.append(f"MACRS GDS remainder: ${macrs_claim:,.2f}")
+
+        # --- Aggregate ---
+        total_deduction = section_179_claim + bonus_claim + macrs_claim
+        
+        result = DepreciationCalculation(
+            asset_name=asset_name,
+            cost=cost,
+            business_use_percent=business_use_percent,
+            depreciable_basis=depreciable_basis,
+            
+            # Fill in individual buckets
+            section_179_deduction=section_179_claim,
+            bonus_depreciation=bonus_claim,
+            macrs_first_year=macrs_claim,
+            
+            total_first_year_deduction=total_deduction,
+            remaining_basis=current_basis,
+            method_used="First_Year_Maximized",
+            in_service_date=in_service_date
         )
         
-        bonus_calc = self.calculate_bonus_depreciation(
-            asset_name, cost, business_use_percent, in_service_date
-        )
-        
-        macrs_calc = self.calculate_macrs_gds(
-            asset_name, cost, business_use_percent, in_service_date, useful_life
-        )
-        
-        # Choose method with highest first-year deduction
-        candidates = [section_179_calc, bonus_calc, macrs_calc]
-        optimal = max(candidates, key=lambda x: x.total_first_year_deduction)
-        
-        optimal.notes.append("Selected optimal depreciation method")
-        
-        return optimal
+        result.notes = notes
+        return result

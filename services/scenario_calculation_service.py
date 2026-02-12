@@ -165,13 +165,12 @@ class ScenarioCalculationService:
         results.total_replacement_cost = total_replacement_cost
         
         # Get §179 limit with phaseout
-        if inputs.override_section_179_limit is not None:
-            section_179_budget = inputs.override_section_179_limit
-        else:
-            section_179_budget = self.tax_policy_service.calculate_section_179_limit_with_phaseout(
-                total_replacement_cost,
-                tax_year
-            )
+        # Get §179 limit with phaseout (handles override internally)
+        section_179_budget = self.tax_policy_service.calculate_section_179_limit_with_phaseout(
+            total_replacement_cost,
+            tax_year,
+            inputs.override_section_179_limit
+        )
         
         section_179_remaining = float(section_179_budget)
         
@@ -220,7 +219,28 @@ class ScenarioCalculationService:
                     useful_life=replacement.useful_life
                 )
                 results.total_macrs_first_year += depr_calc.macrs_first_year
+
+            elif replacement.method == "AUTO":
+                depr_calc = self.depreciation_service.calculate_optimal_method(
+                    asset_name=replacement.name,
+                    cost=replacement.cost,
+                    business_use_percent=replacement.business_use_percent,
+                    in_service_date=in_service_date,
+                    section_179_available=section_179_remaining,
+                    business_income_limit=inputs.business_income_limit,
+                    useful_life=replacement.useful_life,
+                    override_bonus_percent=inputs.override_bonus_percent
+                )
+                # Aggregate based on selected method
+                # Aggregate all components (handling stacked results)
+                results.total_bonus_depreciation += depr_calc.bonus_depreciation
+                results.total_section_179 += depr_calc.section_179_deduction
+                results.total_macrs_first_year += depr_calc.macrs_first_year
                 
+                # Update remaining 179 budget
+                if depr_calc.section_179_deduction > 0:
+                    section_179_remaining -= depr_calc.section_179_deduction
+            
             else:
                 results.warnings.append(f"Unknown method '{replacement.method}' for {replacement.name}")
                 continue
@@ -248,11 +268,14 @@ class ScenarioCalculationService:
         )
         
         # Add warnings if applicable
-        if section_179_remaining < section_179_budget:
+        if section_179_remaining <= 100:  # Threshold for "effectively zero"
             results.warnings.append(
-                f"§179 limit reached. Used ${section_179_budget - section_179_remaining:,.0f} "
-                f"of ${section_179_budget:,.0f} available."
+                f"§179 limit reached. Used full ${section_179_budget:,.0f} available."
             )
+        elif section_179_remaining < section_179_budget:
+            # Used some, but not all. Not really a warning, maybe just info.
+            # We'll skip adding a warning for normal usage to avoid confusion.
+            pass
         
         if results.net_cash_flow < 0:
             results.warnings.append(
