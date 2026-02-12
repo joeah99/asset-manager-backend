@@ -18,7 +18,12 @@
 
 *.pyc
 
-*.editorconfig# Ignore Visual Studio temporary files, build results, and
+*.editorconfig
+
+# Exception for requirements.txt
+!requirements.txt
+
+# Ignore Visual Studio temporary files, build results, and
 # the VSCode folder for settings and extensions
 .vscode/
 .vs/
