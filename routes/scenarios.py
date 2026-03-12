@@ -5,7 +5,8 @@ Endpoints for scenario calculations, tax policy info, and depreciation analysis.
 """
 
 from fastapi import APIRouter, HTTPException, status, Query
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 import logging
 
 from models.scenario_models import (
@@ -13,7 +14,8 @@ from models.scenario_models import (
     ScenarioResultsResponse,
     SaleDetailResponse,
     ReplacementDetailResponse,
-    TaxPolicyResponse
+    TaxPolicyResponse,
+    TaxPolicyUpsertRequest
 )
 from services.scenario_calculation_service import (
     ScenarioCalculationService,
@@ -92,7 +94,7 @@ async def calculate_scenario(request: ScenarioCalculationRequest):
         )
         
         # Calculate scenario
-        results = scenario_service.calculate_scenario(inputs)
+        results = await scenario_service.calculate_scenario(inputs)
         
         # Convert to response
         sale_details = [
@@ -146,6 +148,7 @@ async def calculate_scenario(request: ScenarioCalculationRequest):
             tax_savings_from_deductions=results.tax_savings_from_deductions,
             cash_required_for_replacements=results.cash_required_for_replacements,
             net_cash_flow=results.net_cash_flow,
+            total_annual_debt_service=results.total_annual_debt_service,
             sale_details=sale_details,
             replacement_details=replacement_details,
             calculated_at=results.calculated_at,
@@ -180,11 +183,22 @@ async def get_tax_policy(year: int):
     try:
         policy = tax_policy_service.get_policy_for_year(year)
         
+        # Convert float('inf') in brackets to a large number for JSON serialization
+        safe_brackets = []
+        for b in policy.federal_brackets:
+            limit = b["limit"]
+            if limit == float('inf'):
+                limit = 999999999
+            safe_brackets.append({"limit": limit, "rate": b["rate"]})
+        
         return TaxPolicyResponse(
             effective_year=policy.effective_year,
             section_179_limit=policy.section_179_limit,
             section_179_phaseout_threshold=policy.section_179_phaseout_threshold,
             bonus_depreciation_percent=policy.bonus_depreciation_percent,
+            macrs_5yr_schedule=policy.macrs_5_year_schedule,
+            macrs_7yr_schedule=policy.macrs_7_year_schedule,
+            federal_brackets=safe_brackets,
             policy_source=policy.policy_source
         )
         
@@ -204,7 +218,6 @@ async def get_current_tax_policy():
     Returns:
         Current tax policy details
     """
-    from datetime import datetime
     return await get_tax_policy(datetime.now().year)
 
 
@@ -270,7 +283,8 @@ async def validate_scenario_inputs(request: ScenarioCalculationRequest):
         # Check §179 phaseout
         if request.replacement_assets:
             total_cost = sum(r.cost for r in request.replacement_assets)
-            policy = tax_policy_service.get_policy_for_year(2025)
+            current_year = datetime.now().year
+            policy = tax_policy_service.get_policy_for_year(current_year)
             
             if total_cost > policy.section_179_phaseout_threshold:
                 warnings.append(
@@ -300,4 +314,128 @@ async def validate_scenario_inputs(request: ScenarioCalculationRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"message": f"Error validating inputs: {str(e)}"}
+        )
+
+
+@router.get("/tax-policy/all", response_model=List[TaxPolicyResponse], name="GetAllTaxPolicies")
+async def get_all_tax_policies():
+    """
+    Get all available tax policy years.
+    
+    Returns:
+        List of tax policy details for all available years
+    """
+    try:
+        policies = []
+        for year in tax_policy_service.get_available_years():
+            policy = tax_policy_service.get_policy_for_year(year)
+            
+            # Convert float('inf') for JSON serialization
+            safe_brackets = []
+            for b in policy.federal_brackets:
+                limit = b["limit"]
+                if limit == float('inf'):
+                    limit = 999999999
+                safe_brackets.append({"limit": limit, "rate": b["rate"]})
+            
+            policies.append(TaxPolicyResponse(
+                effective_year=policy.effective_year,
+                section_179_limit=policy.section_179_limit,
+                section_179_phaseout_threshold=policy.section_179_phaseout_threshold,
+                bonus_depreciation_percent=policy.bonus_depreciation_percent,
+                macrs_5yr_schedule=policy.macrs_5_year_schedule,
+                macrs_7yr_schedule=policy.macrs_7_year_schedule,
+                federal_brackets=safe_brackets,
+                policy_source=policy.policy_source
+            ))
+        
+        return policies
+    except Exception as e:
+        logger.error(f"Error fetching all tax policies: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": f"Error fetching tax policies: {str(e)}"}
+        )
+
+
+@router.put("/tax-policy/{year}", response_model=TaxPolicyResponse, name="UpsertTaxPolicy")
+async def upsert_tax_policy(year: int, request: TaxPolicyUpsertRequest):
+    """
+    Create or update a tax policy year.
+    
+    Uses upsert semantics — if the year exists it's updated, otherwise created.
+    After saving, the in-memory policy cache is reloaded.
+    
+    Args:
+        year: Tax year to create/update
+        request: Tax policy data
+        
+    Returns:
+        Updated tax policy details
+    """
+    try:
+        from db.tax_policy_db import TaxPolicyDbContext, TaxPolicyRow
+        
+        db = TaxPolicyDbContext()
+        row = TaxPolicyRow(
+            tax_year=year,
+            section_179_limit=request.section_179_limit,
+            section_179_phaseout_threshold=request.section_179_phaseout_threshold,
+            bonus_depreciation_percent=request.bonus_depreciation_percent,
+            macrs_5yr_schedule=request.macrs_5yr_schedule,
+            macrs_7yr_schedule=request.macrs_7yr_schedule,
+            federal_brackets=request.federal_brackets,
+            policy_source=request.policy_source
+        )
+        await db.upsert_policy_async(row)
+        
+        # Reload policies so the service picks up the change immediately
+        await tax_policy_service.reload_policies()
+        
+        # Return the updated policy
+        return await get_tax_policy(year)
+        
+    except Exception as e:
+        logger.error(f"Error upserting tax policy for {year}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": f"Error saving tax policy: {str(e)}"}
+        )
+
+
+@router.delete("/tax-policy/{year}", name="DeleteTaxPolicy")
+async def delete_tax_policy(year: int):
+    """
+    Delete a tax policy year.
+    
+    Args:
+        year: Tax year to delete
+        
+    Returns:
+        Deletion confirmation
+    """
+    try:
+        from db.tax_policy_db import TaxPolicyDbContext
+        
+        db = TaxPolicyDbContext()
+        deleted = await db.delete_policy_async(year)
+        
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"message": f"No tax policy found for year {year}"}
+            )
+        
+        # Reload policies
+        await tax_policy_service.reload_policies()
+        
+        return {"message": f"Tax policy for year {year} deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting tax policy for {year}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": f"Error deleting tax policy: {str(e)}"}
         )

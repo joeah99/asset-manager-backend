@@ -122,6 +122,9 @@ class ScenarioResultsResponse(BaseModel):
     cash_required_for_replacements: float = Field(alias="cashRequiredForReplacements")
     net_cash_flow: float = Field(alias="netCashFlow")
     
+    # Loan / Debt Service
+    total_annual_debt_service: float = Field(default=0.0, alias="totalAnnualDebtService")
+    
     # Detailed breakdowns
     sale_details: List[SaleDetailResponse] = Field(alias="saleDetails")
     replacement_details: List[ReplacementDetailResponse] = Field(alias="replacementDetails")
@@ -145,7 +148,25 @@ class TaxPolicyResponse(BaseModel):
     section_179_limit: int = Field(alias="section179Limit")
     section_179_phaseout_threshold: int = Field(alias="section179PhaseoutThreshold")
     bonus_depreciation_percent: int = Field(alias="bonusDepreciationPercent")
+    macrs_5yr_schedule: List[float] = Field(default_factory=list, alias="macrs5yrSchedule")
+    macrs_7yr_schedule: List[float] = Field(default_factory=list, alias="macrs7yrSchedule")
+    federal_brackets: List[dict] = Field(default_factory=list, alias="federalBrackets")
     policy_source: str = Field(alias="policySource")
+    
+    class Config:
+        populate_by_name = True
+
+
+class TaxPolicyUpsertRequest(BaseModel):
+    """Request to create or update a tax policy year"""
+    tax_year: int = Field(alias="taxYear")
+    section_179_limit: int = Field(alias="section179Limit")
+    section_179_phaseout_threshold: int = Field(alias="section179PhaseoutThreshold")
+    bonus_depreciation_percent: int = Field(alias="bonusDepreciationPercent")
+    macrs_5yr_schedule: List[float] = Field(alias="macrs5yrSchedule")
+    macrs_7yr_schedule: List[float] = Field(alias="macrs7yrSchedule")
+    federal_brackets: List[dict] = Field(alias="federalBrackets")
+    policy_source: str = Field(default="IRS Publication 946", alias="policySource")
     
     class Config:
         populate_by_name = True

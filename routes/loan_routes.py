@@ -28,7 +28,8 @@ async def create_loan(loan: LoanCreateRequest):
     try:
         # Map request to DTO
         loan_dto = LoanInformationDTO(
-            asset_id=loan.asset_id,
+            linked_type=loan.linked_type,
+            linked_id=loan.linked_id,
             user_id=loan.user_id,
             lender_name=loan.lender_name,
             loan_name=loan.loan_name,
@@ -40,11 +41,9 @@ async def create_loan(loan: LoanCreateRequest):
             monthly_payment=loan.monthly_payment,
             payment_frequency=loan.payment_frequency,
             status=loan.status,
-            last_payment_date=loan.last_payment_date,
-            last_payment_amount=loan.last_payment_amount,
-            next_payment_date=loan.next_payment_date,
             loan_start_date=loan.loan_start_date,
-            loan_end_date=loan.loan_end_date
+            loan_end_date=loan.loan_end_date,
+            ltv=loan.ltv
         )
 
         # Calculate monthly payment if not provided or 0 (Simple amortization calc)
@@ -75,7 +74,8 @@ async def update_loan(loan_id: int, loan: LoanUpdateRequest):
         # Create DTO
         loan_dto = LoanInformationDTO(
             loan_id=loan_id,
-            asset_id=loan.asset_id,
+            linked_type=loan.linked_type,
+            linked_id=loan.linked_id,
             user_id=loan.user_id,
             lender_name=loan.lender_name,
             loan_name=loan.loan_name,
@@ -87,11 +87,9 @@ async def update_loan(loan_id: int, loan: LoanUpdateRequest):
             monthly_payment=loan.monthly_payment,
             payment_frequency=loan.payment_frequency,
             status=loan.status,
-            last_payment_date=loan.last_payment_date,
-            last_payment_amount=loan.last_payment_amount,
-            next_payment_date=loan.next_payment_date,
             loan_start_date=loan.loan_start_date,
-            loan_end_date=loan.loan_end_date
+            loan_end_date=loan.loan_end_date,
+            ltv=loan.ltv
         )
 
         updated_loan = await loan_db.update_loan_record_async(loan_dto)

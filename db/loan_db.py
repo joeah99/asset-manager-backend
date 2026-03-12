@@ -22,10 +22,9 @@ class LoanInformationDbContext:
         try:
             query = """
                 SELECT
-                    loan_id, asset_id, user_id, lender_name, loan_name, loan_type, loan_amount, interest_rate, loan_term_years,
+                    loan_id, linked_type, linked_id, user_id, lender_name, loan_name, loan_type, loan_amount, interest_rate, loan_term_years,
                     remaining_balance, monthly_payment, payment_frequency, loan_status,
-                    last_payment_date, last_payment_amount, next_payment_date,
-                    loan_start_date, loan_end_date, created_at, updated_at
+                    loan_start_date, loan_end_date, ltv, created_at, updated_at
                 FROM "Loans"
                 WHERE user_id = $1
             """
@@ -35,7 +34,8 @@ class LoanInformationDbContext:
             for row in rows:
                 loan = LoanInformationDTO(
                     loan_id=row['loan_id'],
-                    asset_id=row['asset_id'],
+                    linked_type=row['linked_type'],
+                    linked_id=row['linked_id'],
                     user_id=row['user_id'],
                     lender_name=row['lender_name'] or '',
                     loan_name=row['loan_name'] or '',
@@ -47,11 +47,9 @@ class LoanInformationDbContext:
                     monthly_payment=float(row['monthly_payment']) if row['monthly_payment'] else 0.0,
                     payment_frequency=row['payment_frequency'] or '',
                     status=row['loan_status'] or '',
-                    last_payment_date=row['last_payment_date'],
-                    last_payment_amount=float(row['last_payment_amount']) if row['last_payment_amount'] else None,
-                    next_payment_date=row['next_payment_date'],
                     loan_start_date=row['loan_start_date'],
                     loan_end_date=row['loan_end_date'],
+                    ltv=float(row['ltv']) if row['ltv'] is not None else None,
                     loan_creation=row['created_at'] or datetime.utcnow(),
                     loan_update=row['updated_at'] or datetime.utcnow()
                 )
@@ -68,18 +66,18 @@ class LoanInformationDbContext:
         try:
             query = """
                 INSERT INTO "Loans"
-                    (asset_id, user_id, lender_name, loan_name, loan_type, loan_amount, interest_rate, loan_term_years,
+                    (linked_type, linked_id, user_id, lender_name, loan_name, loan_type, loan_amount, interest_rate, loan_term_years,
                     remaining_balance, monthly_payment, payment_frequency, loan_status,
-                    last_payment_date, last_payment_amount, next_payment_date,
-                    loan_start_date, loan_end_date, created_at, updated_at)
+                    loan_start_date, loan_end_date, ltv, created_at, updated_at)
                 VALUES
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
                 RETURNING loan_id
             """
 
             loan_id = await conn.fetchval(
                 query,
-                loan.asset_id,
+                loan.linked_type,
+                loan.linked_id,
                 loan.user_id,
                 loan.lender_name or '',
                 loan.loan_name or '',
@@ -91,11 +89,9 @@ class LoanInformationDbContext:
                 loan.monthly_payment,
                 loan.payment_frequency or '',
                 loan.status or '',
-                loan.last_payment_date,
-                loan.last_payment_amount,
-                loan.next_payment_date,
                 loan.loan_start_date,
-                loan.loan_end_date
+                loan.loan_end_date,
+                loan.ltv
             )
 
             loan.loan_id = loan_id
@@ -110,30 +106,30 @@ class LoanInformationDbContext:
         try:
             query = """
                 UPDATE "Loans"
-                SET asset_id = $1,
-                    user_id = $2,
-                    lender_name = $3,
-                    loan_name = $4,
-                    loan_type = $5,
-                    loan_amount = $6,
-                    interest_rate = $7,
-                    loan_term_years = $8,
-                    remaining_balance = $9,
-                    monthly_payment = $10,
-                    payment_frequency = $11,
-                    loan_status = $12,
-                    last_payment_date = $13,
-                    last_payment_amount = $14,
-                    next_payment_date = $15,
-                    loan_start_date = $16,
-                    loan_end_date = $17,
+                SET linked_type = $1,
+                    linked_id = $2,
+                    user_id = $3,
+                    lender_name = $4,
+                    loan_name = $5,
+                    loan_type = $6,
+                    loan_amount = $7,
+                    interest_rate = $8,
+                    loan_term_years = $9,
+                    remaining_balance = $10,
+                    monthly_payment = $11,
+                    payment_frequency = $12,
+                    loan_status = $13,
+                    loan_start_date = $14,
+                    loan_end_date = $15,
+                    ltv = $16,
                     updated_at = NOW()
-                WHERE loan_id = $18
+                WHERE loan_id = $17
             """
 
             result = await conn.execute(
                 query,
-                loan.asset_id,
+                loan.linked_type,
+                loan.linked_id,
                 loan.user_id,
                 loan.lender_name or '',
                 loan.loan_name or '',
@@ -145,11 +141,9 @@ class LoanInformationDbContext:
                 loan.monthly_payment,
                 loan.payment_frequency or '',
                 loan.status or '',
-                loan.last_payment_date,
-                loan.last_payment_amount,
-                loan.next_payment_date,
                 loan.loan_start_date,
                 loan.loan_end_date,
+                loan.ltv,
                 loan.loan_id
             )
 

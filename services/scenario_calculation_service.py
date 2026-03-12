@@ -82,7 +82,11 @@ class ScenarioResults:
     
     # Net cash analysis
     cash_required_for_replacements: float = 0.0
+    cash_required_for_replacements: float = 0.0
     net_cash_flow: float = 0.0  # liquidation proceeds - replacement cost + tax savings
+    
+    # Loan / Debt Service Analysis
+    total_annual_debt_service: float = 0.0
     
     # Detailed breakdowns
     sale_details: List[SaleCalculation] = field(default_factory=list)
@@ -117,7 +121,7 @@ class ScenarioCalculationService:
         )
         self.basis_service = basis_service or BasisRecaptureService()
     
-    def calculate_scenario(self, inputs: ScenarioInputs) -> ScenarioResults:
+    async def calculate_scenario(self, inputs: ScenarioInputs) -> ScenarioResults:
         """
         Calculate complete scenario with liquidations and replacements.
         
@@ -281,6 +285,39 @@ class ScenarioCalculationService:
             results.warnings.append(
                 f"Scenario requires additional cash: ${abs(results.net_cash_flow):,.2f}"
             )
+        
+        # Step 5: Calculate debt service from existing active loans
+        try:
+            from db.loan_db import LoanInformationDbContext
+            import logging
+            
+            # Setup logging for this specific operation
+            loan_logger = logging.getLogger(__name__)
+            
+            loan_db = LoanInformationDbContext()
+            
+            # Use direct await since we are now in an async function
+            loans = await loan_db.get_loans_async(inputs.user_id)
+            
+            # Calculate total annual debt service (monthly payment * 12)
+            # Only include ACTIVE loans
+            total_annual_debt = sum(
+                loan.monthly_payment * 12 
+                for loan in loans 
+                if loan.status.lower() == 'active'
+            )
+            
+            results.total_annual_debt_service = total_annual_debt
+            loan_logger.info(f"Calculated annual debt service: ${total_annual_debt:,.2f} from {len(loans)} loans")
+            
+        except Exception as e:
+            # Don't fail the entire scenario calculation if loan fetching fails
+            # Just log the error and continue with 0 debt service
+            if 'loan_logger' in locals():
+                loan_logger.error(f"Failed to calculate debt service: {str(e)}")
+            else:
+                print(f"Failed to calculate debt service: {str(e)}")
+            results.total_annual_debt_service = 0.0
         
         return results
     

@@ -21,7 +21,8 @@ class LoanProjectedPaymentsDTO(BaseModel):
 class LoanInformationDTO(BaseModel):
     """Main loan information model"""
     loan_id: int = 0
-    asset_id: Optional[int]    # Made optional since a loan might not always be linked to an asset initially? Or user implies it "Assets securing the loan"
+    linked_type: Optional[str] = None  # 'asset' or 'purchase'
+    linked_id: Optional[int] = None    # ID of the linked asset or purchase
     user_id: int
     lender_name: str
     loan_name: str             # [NEW]
@@ -33,11 +34,9 @@ class LoanInformationDTO(BaseModel):
     monthly_payment: float = 0.0
     payment_frequency: str
     status: str
-    last_payment_date: Optional[date] = None
-    last_payment_amount: Optional[float] = None
-    next_payment_date: Optional[date] = None
     loan_start_date: Optional[date] = None
     loan_end_date: Optional[date] = None
+    ltv: Optional[float] = None
     loan_schedule: List[LoanScheduleDTO] = Field(default_factory=list)
     loan_creation: datetime = Field(default_factory=datetime.utcnow)
     loan_update: datetime = Field(default_factory=datetime.utcnow)
@@ -48,7 +47,8 @@ class LoanInformationDTO(BaseModel):
 
 class LoanCreateRequest(BaseModel):
     """Request model for creating a loan"""
-    asset_id: Optional[int] = None
+    linked_type: Optional[str] = None  # 'asset' or 'purchase'
+    linked_id: Optional[int] = None    # ID of the linked asset or purchase
     user_id: int
     lender_name: str
     loan_name: str             # [NEW]
@@ -60,17 +60,16 @@ class LoanCreateRequest(BaseModel):
     monthly_payment: float = 0.0
     payment_frequency: str = "Monthly"
     status: str = "Active"
-    last_payment_date: Optional[date] = None
-    last_payment_amount: Optional[float] = None
-    next_payment_date: Optional[date] = None
     loan_start_date: Optional[date] = None
     loan_end_date: Optional[date] = None
+    ltv: Optional[float] = None
 
 
 class LoanUpdateRequest(BaseModel):
     """Request model for updating a loan"""
     loan_id: int
-    asset_id: Optional[int] = None
+    linked_type: Optional[str] = None  # 'asset' or 'purchase'
+    linked_id: Optional[int] = None    # ID of the linked asset or purchase
     user_id: int
     lender_name: str
     loan_name: str             # [NEW]
@@ -82,8 +81,6 @@ class LoanUpdateRequest(BaseModel):
     monthly_payment: float
     payment_frequency: str
     status: str
-    last_payment_date: Optional[date] = None
-    last_payment_amount: Optional[float] = None
-    next_payment_date: Optional[date] = None
     loan_start_date: Optional[date] = None
     loan_end_date: Optional[date] = None
+    ltv: Optional[float] = None
