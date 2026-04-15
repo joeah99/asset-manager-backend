@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+
+		<link rel="icon" href="/favicon.ico" />
+		<link
+			rel="icon"
+			href="/favicon-16x16.png"
+			sizes="16x16"
+			type="image/png"
+		/>
+		<link
+			rel="icon"
+			href="/favicon-32x32.png"
+			sizes="32x32"
+			type="image/png"
+		/>
+
+		<link
+			rel="apple-touch-icon"
+			sizes="180x180"
+			href="/apple-touch-icon.png"
+		/>
+
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="192x192"
+			href="/android-chrome-192x192.png"
+		/>
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="512x512"
+			href="/android-chrome-512x512.png"
+		/>
+
+		<link
+			rel="ms-icon"
+			type="image/png"
+			sizes="310x310"
+			href="/ms-icon-310x310.png"
+		/>
+
+		<link
+			rel="preload"
+			href="/fonts/raleway.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
+		<link
+			rel="preload"
+			href="/fonts/roboto.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Free Invoice Generator | Create an Invoice Online</title>
+		<meta name="author" content="Invoice Template" />
+		<meta
+			name="description"
+			content="Create professional invoices in minutes with our free online invoice generator. Use customizable templates, fill out your details, download instantly, and streamline your billing process with ease."
+			data-initial
+		/>
+
+		<!-- Open Graph / Facebook -->
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://invoice-template.com" />
+		<meta
+			property="og:title"
+			content="Free Invoice Generator | Create an Invoice Online"
+		/>
+		<meta
+			property="og:description"
+			content="Create professional invoices in minutes with our free online invoice generator. Use customizable templates, fill out your details, download instantly, and streamline your billing process with ease."
+			data-initial
+		/>
+		<meta property="og:image" content="/og-image.png" />
+
+		<!-- Twitter -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:url" content="https://invoice-template.com" />
+		<meta
+			name="twitter:title"
+			content="Free Invoice Generator | Create an Invoice Online"
+		/>
+		<meta
+			name="twitter:description"
+			content="Create professional invoices in minutes with our free online invoice generator. Use customizable templates, fill out your details, download instantly, and streamline your billing process with ease."
+			data-initial
+		/>
+		<meta name="twitter:image" content="/og-image.png" />
+
+		<style>
+			@font-face {
+				font-family: 'Raleway';
+				font-style: normal;
+				font-weight: 100 900;
+				font-display: swap;
+				src: url(/fonts/raleway.woff2) format('woff2');
+				unicode-range:
+					U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+					U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+					U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+			}
+			@font-face {
+				font-family: 'Roboto';
+				font-style: normal;
+				font-weight: 100 900;
+				font-stretch: 100%;
+				font-display: swap;
+				src: url(/fonts/roboto.woff2) format('woff2');
+				unicode-range:
+					U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+					U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+					U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+			}
+		</style>
+		<script type="module" crossorigin src="/assets/index-DW9nyXhW.js"></script>
+		<link rel="stylesheet" crossorigin href="/assets/index-D_GJIFa-.css">
+	</head>
+	<body>
+		<div id="root"></div>
+		<script
+			defer
+			data-domain="invoice-template.com"
+			src="https://analytics.invoice-template.com/js/plausible.js"
+		></script>
+	</body>
+</html>

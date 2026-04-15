@@ -63,6 +63,7 @@ class AssetDTO(BaseModel):
     useful_life: Optional[int] = Field(default=None, alias="UsefulLife")
     create_date: Optional[str] = Field(default=None, alias="CreateDate")
     update_date: Optional[str] = Field(default=None, alias="UpdateDate")
+    fmv: Optional[float] = Field(default=0.0, alias="FMV")
     fair_market_values_over_time: List[FairMarketValueDTO] = Field(default_factory=list, alias="fairMarketValuesOverTime")
     asset_depreciation_schedule: List[AssetDepreciationDTO] = Field(default_factory=list, alias="assetDepreciationSchedule")
 

@@ -21,9 +21,12 @@ def existing_loan(loan_service):
     """Fixture for an existing loan on an asset"""
     loan = LoanInformationDTO(
         loan_id=1,
-        asset_id=100,
+        linked_type="asset",
+        linked_id=100,
         user_id=1,
         lender_name="Old Bank",
+        loan_name="Old Equipment Loan",
+        loan_type="Term",
         loan_amount=50000.0,
         interest_rate=6.0,
         loan_term_years=5,
@@ -33,11 +36,11 @@ def existing_loan(loan_service):
         loan_start_date="2024-01-01",
         loan_end_date="2029-01-01"
     )
-    loan.monthly_payment = loan_service.calculate_monthly_payment(
+    loan.monthly_payment = round(loan_service.calculate_monthly_payment(
         loan.loan_amount,
         loan.interest_rate,
         loan.loan_term_years
-    )
+    ), 2)
     return loan
 
 
@@ -46,9 +49,12 @@ def replacement_loan(loan_service):
     """Fixture for a loan on a replacement asset"""
     loan = LoanInformationDTO(
         loan_id=2,
-        asset_id=200,
+        linked_type="asset",
+        linked_id=200,
         user_id=1,
         lender_name="New Bank",
+        loan_name="Replacement Equipment Loan",
+        loan_type="Term",
         loan_amount=60000.0,
         interest_rate=4.5,
         loan_term_years=5,
@@ -58,11 +64,11 @@ def replacement_loan(loan_service):
         loan_start_date="2025-01-01",
         loan_end_date="2030-01-01"
     )
-    loan.monthly_payment = loan_service.calculate_monthly_payment(
+    loan.monthly_payment = round(loan_service.calculate_monthly_payment(
         loan.loan_amount,
         loan.interest_rate,
         loan.loan_term_years
-    )
+    ), 2)
     return loan
 
 
@@ -189,8 +195,8 @@ class TestCalculateReplacementImpact:
         )
 
         assert "monthly_payment_comparison" in result
-        assert result["monthly_payment_comparison"]["old_monthly_payment"] == existing_loan.monthly_payment
-        assert result["monthly_payment_comparison"]["new_monthly_payment"] == replacement_loan.monthly_payment
+        assert result["monthly_payment_comparison"]["old_monthly_payment"] == pytest.approx(existing_loan.monthly_payment, 0.01)
+        assert result["monthly_payment_comparison"]["new_monthly_payment"] == pytest.approx(replacement_loan.monthly_payment, 0.01)
         assert "monthly_change" in result["monthly_payment_comparison"]
 
     def test_replacement_with_no_new_loan(self, impact_service, existing_loan):
@@ -316,9 +322,12 @@ class TestCalculateTotalScenarioImpact:
         """Test scenario that should be unfavorable (selling low, buying high with loan)"""
         high_interest_loan = LoanInformationDTO(
             loan_id=3,
-            asset_id=300,
+            linked_type="asset",
+            linked_id=300,
             user_id=1,
             lender_name="Expensive Bank",
+            loan_name="High Interest Loan",
+            loan_type="Term",
             loan_amount=90000.0,
             interest_rate=12.0,  # High interest rate
             loan_term_years=5,

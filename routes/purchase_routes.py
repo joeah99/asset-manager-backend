@@ -31,6 +31,7 @@ class PurchaseDTO(BaseModel):
     business_use_percent: float
     in_service_month: str
     purchase_type: str = "REPLACEMENT"
+    serial_number: Optional[str] = None
 
 @router.post("", response_model=PurchaseDTO)
 async def create_purchase(purchase: PurchaseDTO):
@@ -43,14 +44,14 @@ async def create_purchase(purchase: PurchaseDTO):
             INSERT INTO "Purchases" (
                 user_id, asset_name, asset_type, manufacturer, model, model_year,
                 usage, usage_unit, cost, depreciation_method,
-                business_use_percent, in_service_month, "PurchaseType"
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                business_use_percent, in_service_month, "PurchaseType", serial_number
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING purchase_id
         """, purchase.user_id, purchase.asset_name, purchase.asset_type,
              purchase.manufacturer, purchase.model, purchase.model_year,
              purchase.usage, purchase.usage_unit, purchase.cost,
              purchase.depreciation_method, purchase.business_use_percent,
-             purchase.in_service_month, purchase.purchase_type)
+             purchase.in_service_month, purchase.purchase_type, purchase.serial_number)
         
         purchase.purchase_id = row['purchase_id']
         return purchase
@@ -88,7 +89,8 @@ async def get_purchases(user_id: int):
                 depreciation_method=row['depreciation_method'],
                 business_use_percent=float(row['business_use_percent']),
                 in_service_month=row['in_service_month'],
-                purchase_type=row['PurchaseType'] or "REPLACEMENT"
+                purchase_type=row['PurchaseType'] or "REPLACEMENT",
+                serial_number=row['serial_number']
             ))
         return purchases
     except Exception as e:

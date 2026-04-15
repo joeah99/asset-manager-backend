@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS "Purchases" (
     "business_use_percent" DECIMAL(5, 2),
     "in_service_month" VARCHAR(7),
     "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "PurchaseType" VARCHAR(50) DEFAULT 'REPLACEMENT'
+    "PurchaseType" VARCHAR(50) DEFAULT 'REPLACEMENT',
+    "serial_number" VARCHAR(255)
 );
 """
 
@@ -143,12 +144,14 @@ async def init_db():
             
         await conn.execute(text(CREATE_LOANS_TABLE_SQL))
         await conn.execute(text('ALTER TABLE "Loans" ADD COLUMN IF NOT EXISTS ltv DECIMAL(10, 4);'))
+        await conn.execute(text('ALTER TABLE "Assets" ADD COLUMN IF NOT EXISTS "FMV" DECIMAL(18, 2) DEFAULT 0;'))
         
         # Drop obsolete Loan columns from existing database
         for col in ["last_payment_date", "last_payment_amount", "next_payment_date", "purchase_id"]:
             await conn.execute(text(f'ALTER TABLE "Loans" DROP COLUMN IF EXISTS "{col}";'))
             
         await conn.execute(text(CREATE_PURCHASES_TABLE_SQL))
+        await conn.execute(text('ALTER TABLE "Purchases" ADD COLUMN IF NOT EXISTS serial_number VARCHAR(255);'))
         await conn.execute(text(CREATE_TAX_POLICY_TABLE_SQL))
         
         logger.info("Database initialized successfully.")

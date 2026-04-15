@@ -24,7 +24,7 @@ class AssetDbContext:
                 SELECT
                     "AssetId", "UserId", "Type", "PurchasePrice", "PurchaseDate", "InitialBookValue", "Manufacturer", "Model", "ModelYear",
                     "Usage", "UsageUnit", "Condition", "Country", "ZipCode", "DepreciationMethod", "UsefulLife",
-                    "CreatedAt", "UpdatedAt"
+                    "FMV", "CreatedAt", "UpdatedAt"
                 FROM public."Assets"
                 WHERE "UserId" = $1
             '''
@@ -50,7 +50,8 @@ class AssetDbContext:
                     depreciation_method=row['DepreciationMethod'],
                     useful_life=row['UsefulLife'],
                     create_date=row['CreatedAt'].strftime("%Y-%m-%dT%H:%M:%S"),
-                    update_date=row['UpdatedAt'].strftime("%Y-%m-%dT%H:%M:%S")
+                    update_date=row['UpdatedAt'].strftime("%Y-%m-%dT%H:%M:%S"),
+                    fmv=float(row['FMV']) if row.get('FMV') is not None else 0.0
                 )
                 asset_list.append(asset)
 
@@ -122,7 +123,7 @@ class AssetDbContext:
                 SELECT
                     "AssetId", "UserId", "Type", "PurchasePrice", "InitialBookValue", "Manufacturer", "Model", "ModelYear",
                     "Usage", "Condition", "Country", "ZipCode", "DepreciationMethod",
-                    "UsefulLife", "CreatedAt", "UpdatedAt"
+                    "FMV", "UsefulLife", "CreatedAt", "UpdatedAt"
                 FROM public."Assets"
             '''
 
@@ -145,7 +146,8 @@ class AssetDbContext:
                     depreciation_method=row['DepreciationMethod'],
                     useful_life=row['UsefulLife'],
                     create_date=row['CreatedAt'].strftime("%Y-%m-%dT%H:%M:%S"),
-                    update_date=row['UpdatedAt'].strftime("%Y-%m-%dT%H:%M:%S")
+                    update_date=row['UpdatedAt'].strftime("%Y-%m-%dT%H:%M:%S"),
+                    fmv=float(row['FMV']) if row.get('FMV') is not None else 0.0
                 )
                 asset_list.append(asset)
 
@@ -162,9 +164,9 @@ class AssetDbContext:
                 INSERT INTO public."Assets"
                     ("UserId", "Type", "PurchasePrice", "PurchaseDate", "InitialBookValue", "Manufacturer", "Model", "ModelYear", "Usage", "UsageUnit",
                      "Condition", "Country", "ZipCode", "DepreciationMethod", "UsefulLife",
-                     "CreatedAt", "UpdatedAt")
+                     "FMV", "CreatedAt", "UpdatedAt")
                 VALUES
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                 RETURNING "AssetId"
             '''
 
@@ -191,6 +193,7 @@ class AssetDbContext:
                 asset.zip_code,
                 asset.depreciation_method,
                 asset.useful_life,
+                asset.fmv,
                 datetime.now(),
                 datetime.now()
             )
@@ -235,8 +238,9 @@ class AssetDbContext:
                     "ZipCode" = $12,
                     "DepreciationMethod" = $13,
                     "UsefulLife" = $14,
-                    "UpdatedAt" = $15
-                WHERE "AssetId" = $16
+                    "FMV" = $15,
+                    "UpdatedAt" = $16
+                WHERE "AssetId" = $17
             '''
 
             try:
@@ -260,6 +264,7 @@ class AssetDbContext:
                 asset.zip_code,
                 asset.depreciation_method,
                 asset.useful_life,
+                asset.fmv,
                 datetime.now(),
                 asset.asset_id
             )

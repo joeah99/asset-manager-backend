@@ -52,6 +52,7 @@ class ScenarioInputs:
     
     # Tax settings
     marginal_tax_rate: float  # e.g., 0.24 for 24%
+    state_tax_rate: float = 0.0 # e.g., 0.05 for 5%
     capital_gains_rate: float = 0.15  # Long-term cap gains
     business_income_limit: Optional[float] = None  # For §179 limitation
     
@@ -70,6 +71,8 @@ class ScenarioResults:
     total_section_1245_recapture: float = 0.0
     total_section_1231_gain: float = 0.0
     total_tax_on_sales: float = 0.0
+    federal_tax_on_sales: float = 0.0
+    state_tax_on_sales: float = 0.0
     net_cash_from_liquidation: float = 0.0
     
     # Replacement summary
@@ -79,6 +82,8 @@ class ScenarioResults:
     total_macrs_first_year: float = 0.0
     total_first_year_deductions: float = 0.0
     tax_savings_from_deductions: float = 0.0
+    federal_tax_savings_from_deductions: float = 0.0
+    state_tax_savings_from_deductions: float = 0.0
     
     # Net cash analysis
     cash_required_for_replacements: float = 0.0
@@ -142,6 +147,7 @@ class ScenarioCalculationService:
                 sale_price=sale.sale_price,
                 transaction_fees=sale.transaction_fees,
                 ordinary_tax_rate=inputs.marginal_tax_rate,
+                state_tax_rate=inputs.state_tax_rate,
                 capital_gains_rate=inputs.capital_gains_rate,
                 sale_date=self._parse_month(sale.close_month)
             )
@@ -151,7 +157,9 @@ class ScenarioCalculationService:
             results.total_transaction_fees += sale_calc.transaction_fees
             results.total_section_1245_recapture += sale_calc.section_1245_recapture
             results.total_section_1231_gain += sale_calc.section_1231_gain
-            results.total_tax_on_sales += (sale_calc.tax_on_recapture + sale_calc.tax_on_capital_gain)
+            results.federal_tax_on_sales += (sale_calc.tax_on_recapture + sale_calc.tax_on_capital_gain)
+            results.state_tax_on_sales += (sale_calc.state_tax_on_recapture + sale_calc.state_tax_on_capital_gain)
+            results.total_tax_on_sales += (sale_calc.tax_on_recapture + sale_calc.tax_on_capital_gain + sale_calc.state_tax_on_recapture + sale_calc.state_tax_on_capital_gain)
         
         results.net_cash_from_liquidation = (
             results.total_sale_proceeds 
@@ -258,8 +266,14 @@ class ScenarioCalculationService:
             + results.total_macrs_first_year
         )
         
-        results.tax_savings_from_deductions = (
+        results.federal_tax_savings_from_deductions = (
             results.total_first_year_deductions * inputs.marginal_tax_rate
+        )
+        results.state_tax_savings_from_deductions = (
+            results.total_first_year_deductions * inputs.state_tax_rate
+        )
+        results.tax_savings_from_deductions = (
+            results.federal_tax_savings_from_deductions + results.state_tax_savings_from_deductions
         )
         
         # Step 4: Net cash flow analysis

@@ -64,8 +64,10 @@ app.include_router(loan_routes.router, prefix="", tags=["LoanInformation"])
 app.include_router(scenarios.router, prefix="/scenarios", tags=["Scenarios"])
 app.include_router(purchase_routes.router, prefix="/purchases", tags=["Purchases"])
 
-from routes import explanation_routes
+from routes import explanation_routes, document_routes, valuation
 app.include_router(explanation_routes.router, prefix="/scenarios/explain", tags=["AI Explanation"])
+app.include_router(document_routes.router, prefix="", tags=["Document Extraction"])
+app.include_router(valuation.router, prefix="/valuation", tags=["Valuation"])
 
 # Allow your React frontend to call this API
 origins = [

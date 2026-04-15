@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
 from typing import List
 from models.loan_models import LoanInformationDTO, LoanScheduleDTO
@@ -55,18 +55,24 @@ class LoanInformationService:
 
         # Parse start and end dates or default to today and loan term
         if loan.loan_start_date:
-            try:
-                start_date = datetime.strptime(loan.loan_start_date, "%Y-%m-%d")
-            except (ValueError, TypeError):
-                start_date = datetime.now()
+            if isinstance(loan.loan_start_date, (datetime, date)):
+                start_date = datetime(loan.loan_start_date.year, loan.loan_start_date.month, loan.loan_start_date.day)
+            else:
+                try:
+                    start_date = datetime.strptime(str(loan.loan_start_date), "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    start_date = datetime.now()
         else:
             start_date = datetime.now()
 
         if loan.loan_end_date:
-            try:
-                end_date = datetime.strptime(loan.loan_end_date, "%Y-%m-%d")
-            except (ValueError, TypeError):
-                end_date = start_date + relativedelta(months=loan.loan_term_years * 12)
+            if isinstance(loan.loan_end_date, (datetime, date)):
+                end_date = datetime(loan.loan_end_date.year, loan.loan_end_date.month, loan.loan_end_date.day)
+            else:
+                try:
+                    end_date = datetime.strptime(str(loan.loan_end_date), "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    end_date = start_date + relativedelta(months=loan.loan_term_years * 12)
         else:
             end_date = start_date + relativedelta(months=loan.loan_term_years * 12)
 
@@ -113,19 +119,25 @@ class LoanInformationService:
 
         # Parse start date
         if loan.loan_start_date:
-            try:
-                start_date = datetime.strptime(loan.loan_start_date, "%Y-%m-%d")
-            except (ValueError, TypeError):
-                start_date = datetime.now()
+            if isinstance(loan.loan_start_date, (datetime, date)):
+                start_date = datetime(loan.loan_start_date.year, loan.loan_start_date.month, loan.loan_start_date.day)
+            else:
+                try:
+                    start_date = datetime.strptime(str(loan.loan_start_date), "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    start_date = datetime.now()
         else:
             start_date = datetime.now()
 
         # Calculate end date
         if loan.loan_end_date:
-            try:
-                end_date = datetime.strptime(loan.loan_end_date, "%Y-%m-%d")
-            except (ValueError, TypeError):
-                end_date = start_date + relativedelta(months=loan.loan_term_years * 12)
+            if isinstance(loan.loan_end_date, (datetime, date)):
+                end_date = datetime(loan.loan_end_date.year, loan.loan_end_date.month, loan.loan_end_date.day)
+            else:
+                try:
+                    end_date = datetime.strptime(str(loan.loan_end_date), "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    end_date = start_date + relativedelta(months=loan.loan_term_years * 12)
         else:
             end_date = start_date + relativedelta(months=loan.loan_term_years * 12)
 
@@ -221,6 +233,10 @@ class LoanInformationService:
         # Calculate prepayment penalty
         prepayment_penalty = remaining_balance * (prepayment_penalty_rate / 100.0)
 
+        # Calculate total interest if life of loan
+        total_interest_if_kept = sum(payment["interest_payment"] for payment in schedule)
+        interest_savings = total_interest_if_kept - interest_paid_to_date
+
         # Total payoff amount
         total_payoff = remaining_balance + prepayment_penalty
 
@@ -230,6 +246,7 @@ class LoanInformationService:
             "prepayment_penalty": round(prepayment_penalty, 2),
             "total_payoff_amount": round(total_payoff, 2),
             "total_interest_paid": round(interest_paid_to_date, 2),
+            "interest_savings": round(interest_savings, 2),
             "total_principal_paid": round(principal_paid_to_date, 2),
             "original_loan_amount": loan.loan_amount
         }

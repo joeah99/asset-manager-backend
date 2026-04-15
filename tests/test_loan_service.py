@@ -15,9 +15,12 @@ def sample_loan():
     """Fixture to create a sample loan for testing"""
     return LoanInformationDTO(
         loan_id=1,
-        asset_id=100,
+        linked_type="asset",
+        linked_id=100,
         user_id=1,
         lender_name="Test Bank",
+        loan_name="Test Equipment Loan",
+        loan_type="Term",
         loan_amount=100000.0,
         interest_rate=5.0,
         loan_term_years=5,

@@ -32,6 +32,8 @@ class SaleCalculation:
     net_proceeds_before_tax: float
     tax_on_recapture: float
     tax_on_capital_gain: float
+    state_tax_on_recapture: float
+    state_tax_on_capital_gain: float
     net_proceeds_after_tax: float
     
     sale_date: Optional[datetime] = None
@@ -61,6 +63,7 @@ class BasisRecaptureService:
         sale_price: float,
         transaction_fees: float,
         ordinary_tax_rate: float,  # Marginal rate (e.g., 0.24)
+        state_tax_rate: float = 0.0,
         capital_gains_rate: float = 0.15,  # Long-term cap gains (0%, 15%, or 20%)
         sale_date: Optional[datetime] = None
     ) -> SaleCalculation:
@@ -97,7 +100,13 @@ class BasisRecaptureService:
         # Step 5: Calculate taxes
         tax_on_recapture = section_1245_recapture * ordinary_tax_rate
         tax_on_capital_gain = section_1231_gain * capital_gains_rate
-        total_tax = tax_on_recapture + tax_on_capital_gain
+        
+        state_tax_on_recapture = section_1245_recapture * state_tax_rate
+        state_tax_on_capital_gain = section_1231_gain * state_tax_rate
+        
+        total_federal_tax = tax_on_recapture + tax_on_capital_gain
+        total_state_tax = state_tax_on_recapture + state_tax_on_capital_gain
+        total_tax = total_federal_tax + total_state_tax
         
         # Step 6: Net proceeds
         gross_proceeds = sale_price
@@ -118,6 +127,8 @@ class BasisRecaptureService:
             net_proceeds_before_tax=net_proceeds_before_tax,
             tax_on_recapture=tax_on_recapture,
             tax_on_capital_gain=tax_on_capital_gain,
+            state_tax_on_recapture=state_tax_on_recapture,
+            state_tax_on_capital_gain=state_tax_on_capital_gain,
             net_proceeds_after_tax=net_proceeds_after_tax,
             sale_date=sale_date
         )

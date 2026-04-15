@@ -16,8 +16,8 @@ def generate_scenario_explanation(scenario_data: dict) -> str:
 
     client = genai.Client(api_key=api_key)
     
-    # We use gemini-2.5-flash as it's the recommended model for general text tasks
-    model = "gemini-2.5-flash"
+    # models/gemini-3.1-flash-lite-preview: Verified working with active quota.
+    model = "models/gemini-3.1-flash-lite-preview"
 
     prompt = f"""
 You are a financial summarizer. Your job is to summarize the provided financial scenario outcomes clearly and concisely.
@@ -39,9 +39,9 @@ Please provide a clear, professional summary of these results. Make it easy to r
     try:
         response = client.models.generate_content(
             model=model,
-            contents=prompt,
+            contents=[prompt],
         )
         return response.text
     except Exception as e:
-         print(f"Error generating explanation from Gemini: {e}")
-         raise
+        print(f"Error generating explanation from Gemini: {type(e).__name__}: {e}")
+        return "Error: Unable to generate a natural language explanation at this time. Please check your scenario details and try again. Our AI service might be temporarily busy or reaching its limit.\n\nDisclaimer: This is an AI-generated summary of your scenario inputs and is not professional tax advice. Always consult a certified public accountant (CPA) or tax professional before making financial decisions."

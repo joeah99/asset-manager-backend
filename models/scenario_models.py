@@ -46,6 +46,7 @@ class ScenarioCalculationRequest(BaseModel):
     
     # Tax settings
     marginal_tax_rate: float = Field(alias="marginalTaxRate")  # decimal (e.g., 0.24)
+    state_tax_rate: float = Field(default=0.0, alias="stateTaxRate") # decimal (e.g., 0.05)
     capital_gains_rate: float = Field(default=0.15, alias="capitalGainsRate")
     business_income_limit: Optional[float] = Field(default=None, alias="businessIncomeLimit")
     
@@ -74,6 +75,8 @@ class SaleDetailResponse(BaseModel):
     transaction_fees: float = Field(alias="transactionFees")
     tax_on_recapture: float = Field(alias="taxOnRecapture")
     tax_on_capital_gain: float = Field(alias="taxOnCapitalGain")
+    state_tax_on_recapture: float = Field(default=0.0, alias="stateTaxOnRecapture")
+    state_tax_on_capital_gain: float = Field(default=0.0, alias="stateTaxOnCapitalGain")
     net_proceeds_after_tax: float = Field(alias="netProceedsAfterTax")
     notes: List[str] = Field(default_factory=list)
     
@@ -108,6 +111,8 @@ class ScenarioResultsResponse(BaseModel):
     total_section_1245_recapture: float = Field(alias="totalSection1245Recapture")
     total_section_1231_gain: float = Field(alias="totalSection1231Gain")
     total_tax_on_sales: float = Field(alias="totalTaxOnSales")
+    federal_tax_on_sales: float = Field(default=0.0, alias="federalTaxOnSales")
+    state_tax_on_sales: float = Field(default=0.0, alias="stateTaxOnSales")
     net_cash_from_liquidation: float = Field(alias="netCashFromLiquidation")
     
     # Replacement summary
@@ -117,6 +122,8 @@ class ScenarioResultsResponse(BaseModel):
     total_macrs_first_year: float = Field(alias="totalMacrsFirstYear")
     total_first_year_deductions: float = Field(alias="totalFirstYearDeductions")
     tax_savings_from_deductions: float = Field(alias="taxSavingsFromDeductions")
+    federal_tax_savings_from_deductions: float = Field(default=0.0, alias="federalTaxSavingsFromDeductions")
+    state_tax_savings_from_deductions: float = Field(default=0.0, alias="stateTaxSavingsFromDeductions")
     
     # Net cash analysis
     cash_required_for_replacements: float = Field(alias="cashRequiredForReplacements")
