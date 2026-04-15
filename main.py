@@ -10,12 +10,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import loan_routes, assets, scenarios, auth, purchase_routes
 
-# Setup logging
+# Setup logging — stdout only (required for Render/cloud hosts)
 logging.basicConfig(
     level=logging.INFO,
-    filename='backend_debug.log',
-    filemode='a',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
